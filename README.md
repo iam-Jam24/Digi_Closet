@@ -62,7 +62,6 @@ digi-closet/
 │       ├── routes/            # authRoutes, profileRoutes, wardrobeRoutes, productRoutes
 │       └── services/          # AI service abstractions
 │
-├── .env.example               # Environment variable template
 ├── .gitignore
 └── README.md
 ```
