@@ -35,9 +35,13 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(env.PORT, () => {
+const server = app.listen(env.PORT, () => {
   console.log(`\n  🚀 Digi Closet API running on http://localhost:${env.PORT}`);
   console.log(`  📦 Environment: ${env.NODE_ENV}\n`);
+});
+
+server.on('error', (err) => {
+  console.error('Server error:', err);
 });
 
 module.exports = app;
