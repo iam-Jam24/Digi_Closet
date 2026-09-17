@@ -1,0 +1,105 @@
+<svg width="900" height="1200" viewBox="0 0 900 1200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Abstract illustration of an AI-fitted garment silhouette">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f7f4ef" />
+      <stop offset="55%" stop-color="#efe6d6" />
+      <stop offset="100%" stop-color="#e4d6ba" />
+    </linearGradient>
+
+    <linearGradient id="figure" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3f3a34" />
+      <stop offset="55%" stop-color="#141210" />
+      <stop offset="100%" stop-color="#000000" />
+    </linearGradient>
+
+    <linearGradient id="figureHighlight" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#e5c158" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#e5c158" stop-opacity="0" />
+    </linearGradient>
+
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f6e3ad" stop-opacity="0.9" />
+      <stop offset="60%" stop-color="#f6e3ad" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#f6e3ad" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="glowAmber" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f2c879" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#f2c879" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="glowStone" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#c9beac" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#c9beac" stop-opacity="0" />
+    </radialGradient>
+
+    <pattern id="scan" width="900" height="26" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="13" x2="900" y2="13" stroke="#e5c158" stroke-width="1" stroke-opacity="0.18" />
+    </pattern>
+
+    <clipPath id="frame">
+      <rect x="0" y="0" width="900" height="1200" />
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="900" height="1200" fill="url(#bg)" />
+
+    <!-- ambient glow blobs, matching the page's soft-light aesthetic -->
+    <circle cx="180" cy="260" r="260" fill="url(#glowAmber)" />
+    <circle cx="760" cy="880" r="300" fill="url(#glowStone)" />
+
+    <!-- halo behind the figure's head -->
+    <circle cx="450" cy="330" r="230" fill="url(#halo)" />
+
+    <!-- fine horizontal scan-line texture suggesting an AI fitting scan -->
+    <rect x="0" y="0" width="900" height="1200" fill="url(#scan)" />
+
+    <!-- abstract garment / figure silhouette (not a depiction of any real person) -->
+    <path
+      d="M450 210
+         c 46 0 84 36 84 84
+         c 0 34 -18 62 -44 78
+         c 96 26 168 96 196 210
+         c 30 120 34 330 22 470
+         c -4 46 -40 78 -86 78
+         h -344
+         c -46 0 -82 -32 -86 -78
+         c -12 -140 -8 -350 22 -470
+         c 28 -114 100 -184 196 -210
+         c -26 -16 -44 -44 -44 -78
+         c 0 -48 38 -84 84 -84 Z"
+      fill="url(#figure)"
+    />
+
+    <!-- soft fabric fold lines -->
+    <path d="M330 560 C 360 720 350 900 320 1050" stroke="#000000" stroke-opacity="0.35" stroke-width="3" fill="none" />
+    <path d="M450 540 C 460 720 455 900 448 1060" stroke="#000000" stroke-opacity="0.3" stroke-width="3" fill="none" />
+    <path d="M570 560 C 540 720 550 900 580 1050" stroke="#000000" stroke-opacity="0.35" stroke-width="3" fill="none" />
+
+    <!-- gold rim light along one edge, echoing the brand accent color -->
+    <path
+      d="M582 292 c 96 26 168 96 196 210 c 30 120 34 330 22 470 c -3 38 -28 66 -62 75"
+      stroke="url(#figureHighlight)"
+      stroke-width="14"
+      fill="none"
+      stroke-linecap="round"
+    />
+
+    <!-- sparkle accents -->
+    <g fill="#e5c158">
+      <path d="M210 160 l8 20 20 8 -20 8 -8 20 -8 -20 -20 -8 20 -8 Z" opacity="0.9" />
+      <path d="M700 200 l6 15 15 6 -15 6 -6 15 -6 -15 -15 -6 15 -6 Z" opacity="0.8" />
+      <path d="M690 640 l7 18 18 7 -18 7 -7 18 -7 -18 -18 -7 18 -7 Z" opacity="0.7" />
+      <path d="M150 700 l6 16 16 6 -16 6 -6 16 -6 -16 -16 -6 16 -6 Z" opacity="0.6" />
+    </g>
+
+    <!-- corner AI scan brackets -->
+    <g stroke="#0a0a0a" stroke-width="3" fill="none" opacity="0.55">
+      <path d="M60 60 h50 M60 60 v50" />
+      <path d="M840 60 h-50 M840 60 v50" />
+      <path d="M60 1140 h50 M60 1140 v-50" />
+      <path d="M840 1140 h-50 M840 1140 v-50" />
+    </g>
+  </g>
+</svg>
