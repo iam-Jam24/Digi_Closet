@@ -19,7 +19,6 @@ import {
   Grid,
   Zap,
 } from 'lucide-react';
-import aiModelHero from '../assets/ai-model-hero.svg';
 
 const studioWorkflows = [
   {
@@ -194,8 +193,8 @@ export default function Home() {
               {/* Main Model Image Card */}
               <div className="relative aspect-[3/4] rounded-2xl overflow-hidden border border-stone-200/80 bg-stone-100 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.12)] group">
                 <img
-                  src={aiModelHero}
-                  alt="Abstract illustration of an AI-fitted garment"
+                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1200&auto=format&fit=crop"
+                  alt="Aesthetic Fashion Girl Model"
                   className="w-full h-full object-cover filter contrast-[1.03] group-hover:scale-105 transition-transform duration-700"
                 />
                 
