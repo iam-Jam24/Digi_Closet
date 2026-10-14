@@ -19,7 +19,6 @@
 - [Technology Stack](#technology-stack)
 - [Project Structure](#project-structure)
 - [Installation](#installation)
-- [Environment Variables](#environment-variables)
 - [Running the Application](#running-the-application)
 - [Available Scripts](#available-scripts)
 - [API Documentation Overview](#api-documentation-overview)
@@ -142,43 +141,6 @@ cd frontend
 npm install
 cd ..
 ```
-
----
-
-## Environment Variables
-
-DigiCloset uses separate environment files for the backend and frontend.
-
-### 1. Backend (`backend/.env`)
-Copy the template file:
-```bash
-cp backend/.env.example backend/.env
-```
-
-| Variable | Description | Required? | Default / Example |
-|----------|-------------|:---------:|-------------------|
-| `PORT` | Port for the Express backend server | Yes | `5001` |
-| `NODE_ENV` | Environment mode (`development` or `production`) | Yes | `development` |
-| `CLIENT_URL` | Frontend origin for CORS policy | Yes | `http://localhost:5173` |
-| `MONGODB_URI` | MongoDB connection string | Yes | `mongodb://127.0.0.1:27017/digi_closet` |
-| `FIREBASE_PROJECT_ID` | Firebase project identifier | Yes | `demo-digi-closet` |
-| `FIREBASE_AUTH_EMULATOR_HOST` | Host for local Firebase Auth Emulator | Dev only | `127.0.0.1:9099` |
-| `GEMINI_API_KEY` | Google Gemini API key | Optional | *Leave blank for offline fallback mode* |
-| `FIREBASE_STORAGE_BUCKET` | Firebase Cloud Storage bucket name | Optional | *Leave blank to save files locally in `uploads/`* |
-
-### 2. Frontend (`frontend/.env`)
-Copy the template file:
-```bash
-cp frontend/.env.example frontend/.env
-```
-
-| Variable | Description | Required? | Default / Example |
-|----------|-------------|:---------:|-------------------|
-| `VITE_API_BASE_URL` | Base URL for API calls (proxied by Vite) | Yes | `/api` |
-| `VITE_FIREBASE_PROJECT_ID` | Firebase project identifier | Yes | `demo-digi-closet` |
-| `VITE_FIREBASE_API_KEY` | Firebase Web API key | Yes | `demo-api-key` |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain | Yes | `demo-digi-closet.firebaseapp.com` |
-| `VITE_FIREBASE_AUTH_EMULATOR_HOST` | Point client SDK to local emulator | Dev only | `localhost:9099` |
 
 ---
 
