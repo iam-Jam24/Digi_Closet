@@ -1,4 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  updateProfile as updateFirebaseProfile,
+} from 'firebase/auth';
+import { auth, googleProvider } from '../firebase';
 import api from '../services/api';
 
 const AuthContext = createContext(null);
@@ -12,74 +21,70 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [user, setUser] = useState(null); // Mongo profile
   const [loading, setLoading] = useState(true);
 
-  const isAuthenticated = !!user;
+  const isAuthenticated = !!firebaseUser;
 
-  // Check for existing session on mount
-  useEffect(() => {
-    const initAuth = async () => {
-      const token = localStorage.getItem('digi_closet_token');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const { data } = await api.get('/auth/me');
-        setUser(data.data.user);
-      } catch {
-        localStorage.removeItem('digi_closet_token');
-        localStorage.removeItem('digi_closet_user');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initAuth();
+  const syncMongoProfile = useCallback(async (name) => {
+    try {
+      const { data } = await api.post('/auth/sync', name ? { name } : {});
+      setUser(data.data.user);
+    } catch (err) {
+      console.error('Failed to sync profile:', err);
+    }
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      setFirebaseUser(fbUser);
+      if (fbUser) {
+        await syncMongoProfile();
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, [syncMongoProfile]);
 
   const login = useCallback(async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
-    const { user: userData, token } = data.data;
+    const credential = await signInWithEmailAndPassword(auth, email, password);
+    await syncMongoProfile();
+    return credential;
+  }, [syncMongoProfile]);
 
-    localStorage.setItem('digi_closet_token', token);
-    localStorage.setItem('digi_closet_user', JSON.stringify(userData));
-    setUser(userData);
+  const register = useCallback(async (name, email, password) => {
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    if (name) {
+      await updateFirebaseProfile(credential.user, { displayName: name });
+    }
+    await syncMongoProfile(name);
+    return credential;
+  }, [syncMongoProfile]);
 
-    return data;
-  }, []);
+  const loginWithGoogle = useCallback(async () => {
+    const credential = await signInWithPopup(auth, googleProvider);
+    await syncMongoProfile(credential.user.displayName);
+    return credential;
+  }, [syncMongoProfile]);
 
-  const register = useCallback(async (name, email, password, confirmPassword) => {
-    const { data } = await api.post('/auth/register', {
-      name,
-      email,
-      password,
-      confirmPassword,
-    });
-    const { user: userData, token } = data.data;
-
-    localStorage.setItem('digi_closet_token', token);
-    localStorage.setItem('digi_closet_user', JSON.stringify(userData));
-    setUser(userData);
-
-    return data;
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem('digi_closet_token');
-    localStorage.removeItem('digi_closet_user');
+  const logout = useCallback(async () => {
+    await signOut(auth);
     setUser(null);
   }, []);
 
   const value = {
+    firebaseUser,
     user,
     loading,
     isAuthenticated,
     login,
     register,
+    loginWithGoogle,
     logout,
+    refreshProfile: syncMongoProfile,
   };
 
   return (

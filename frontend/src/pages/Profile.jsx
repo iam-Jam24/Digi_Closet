@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Check } from 'lucide-react';
+import { Save, Check, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import useProfile from '../hooks/useProfile';
 import PageHeader from '../components/PageHeader';
@@ -8,46 +8,124 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import ConfirmDialog from '../components/ConfirmDialog';
 
-const STYLE_OPTIONS = [
-  'Minimalist', 'Casual', 'Classic', 'Formal', 'Old Money',
-  'Gen Z Streetwear', 'Gothic', 'Bright / Maximalist', 'Sporty',
-];
+const STYLE_OPTIONS = ['Minimalist', 'Casual', 'Classic', 'Formal', 'Old Money', 'Gen Z Streetwear', 'Gothic', 'Bright / Maximalist', 'Sporty'];
+const OCCASION_OPTIONS = ['Casual', 'College', 'Office', 'Interview', 'Date', 'Wedding', 'Party', 'Travel'];
+const COLOR_OPTIONS = ['Black', 'White', 'Navy', 'Grey', 'Beige', 'Brown', 'Red', 'Blue', 'Green', 'Pink', 'Maroon', 'Olive'];
 
-const OCCASION_OPTIONS = [
-  'Casual', 'College', 'Office', 'Interview',
-  'Date', 'Wedding', 'Party', 'Travel',
-];
+function TagToggle({ options, selected, onToggle }) {
+  return (
+    <div className="tag-toggle-group">
+      {options.map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => onToggle(opt)}
+          className={`filter-chip ${selected.includes(opt) ? 'filter-chip--active' : ''}`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
 
-const COLOR_OPTIONS = [
-  'Black', 'White', 'Navy', 'Grey', 'Beige', 'Brown',
-  'Red', 'Blue', 'Green', 'Pink', 'Maroon', 'Olive',
-];
+function ProfileForm({ authUser, form, setForm, toggleArrayItem, handleSubmit, formError, success, saving, setShowDeleteConfirm }) {
+  const update = (field) => (e) => { setForm({ ...form, [field]: e.target.value }); };
+
+  return (
+    <form onSubmit={handleSubmit} className="auth-card__form">
+      <Card>
+        <h2 className="section__title">Basic Information</h2>
+        <div className="form-grid">
+          <Input label="Name" value={authUser?.name || ''} disabled />
+          <Input label="Email" value={authUser?.email || ''} disabled />
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="section__title">Favorite Colors</h2>
+        <TagToggle options={COLOR_OPTIONS} selected={form.favoriteColors} onToggle={(v) => toggleArrayItem('favoriteColors', v)} />
+      </Card>
+
+      <Card>
+        <h2 className="section__title">Disliked Colors</h2>
+        <TagToggle options={COLOR_OPTIONS} selected={form.dislikedColors} onToggle={(v) => toggleArrayItem('dislikedColors', v)} />
+      </Card>
+
+      <Card>
+        <h2 className="section__title">Preferred Styles</h2>
+        <TagToggle options={STYLE_OPTIONS} selected={form.preferredStyles} onToggle={(v) => toggleArrayItem('preferredStyles', v)} />
+      </Card>
+
+      <Card>
+        <h2 className="section__title">Budget Range (₹)</h2>
+        <div className="form-grid form-grid--2">
+          <Input label="Minimum" type="number" placeholder="e.g. 500" value={form.budgetMin} onChange={update('budgetMin')} />
+          <Input label="Maximum" type="number" placeholder="e.g. 5000" value={form.budgetMax} onChange={update('budgetMax')} />
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="section__title">Preferred Occasions</h2>
+        <TagToggle options={OCCASION_OPTIONS} selected={form.preferredOccasions} onToggle={(v) => toggleArrayItem('preferredOccasions', v)} />
+      </Card>
+
+      <Card>
+        <h2 className="section__title">Optional Physical Profile</h2>
+        <p className="text-secondary" style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--space-4)' }}>
+          Optional, used only to improve fit-related suggestions. Never used for health or appearance judgments.
+          Delete it anytime below.
+        </p>
+        <div className="form-grid form-grid--2">
+          <Input label="Height" placeholder="e.g. 5'8&quot; or 173cm" value={form.height} onChange={update('height')} />
+          <Input label="Weight" placeholder="Optional" value={form.weight} onChange={update('weight')} />
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-3)', fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+          <input type="checkbox" checked={form.consentGiven} onChange={(e) => setForm({ ...form, consentGiven: e.target.checked })} />
+          I consent to storing this physical profile information for personalization.
+        </label>
+      </Card>
+
+      {formError && <div className="alert alert--error">{formError}</div>}
+      {success && <div className="alert alert--success"><Check size={16} /> Profile updated successfully.</div>}
+
+      <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+        <Button type="submit" loading={saving} size="lg"><Save size={16} /> Save Profile</Button>
+        <Button type="button" variant="ghost" size="lg" onClick={() => setShowDeleteConfirm(true)}>
+          <Trash2 size={16} /> Delete Profile Data
+        </Button>
+      </div>
+    </form>
+  );
+}
 
 export default function Profile() {
-  const { user } = useAuth();
-  const { profile, loading, error, saving, updateProfile, refetch } = useProfile();
+  const { user: authUser } = useAuth();
+  const { profile, loading, error, saving, updateProfile, deleteProfileData, refetch } = useProfile();
   const [form, setForm] = useState({
-    height: '',
-    preferredColors: [],
-    preferredStyles: [],
-    budgetMin: '',
-    budgetMax: '',
-    preferredOccasions: [],
+    preferredStyles: [], favoriteColors: [], dislikedColors: [], preferredOccasions: [],
+    budgetMin: '', budgetMax: '', height: '', weight: '', consentGiven: false,
   });
   const [success, setSuccess] = useState(false);
   const [formError, setFormError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Populate form when profile loads
   useEffect(() => {
     if (profile) {
+      const sp = profile.stylePreferences || {};
+      const pp = profile.physicalProfile || {};
       setForm({
-        height: profile.height || '',
-        preferredColors: profile.preferredColors || [],
-        preferredStyles: profile.preferredStyles || [],
-        budgetMin: profile.budgetMin?.toString() || '',
-        budgetMax: profile.budgetMax?.toString() || '',
-        preferredOccasions: profile.preferredOccasions || [],
+        preferredStyles: sp.preferredStyles || [],
+        favoriteColors: sp.favoriteColors || [],
+        dislikedColors: sp.dislikedColors || [],
+        preferredOccasions: sp.preferredOccasions || [],
+        budgetMin: sp.budgetMin?.toString() || '',
+        budgetMax: sp.budgetMax?.toString() || '',
+        height: pp.height || '',
+        weight: pp.weight || '',
+        consentGiven: pp.consentGiven || false,
       });
     }
   }, [profile]);
@@ -55,9 +133,7 @@ export default function Profile() {
   const toggleArrayItem = (field, value) => {
     setForm((prev) => ({
       ...prev,
-      [field]: prev[field].includes(value)
-        ? prev[field].filter((v) => v !== value)
-        : [...prev[field], value],
+      [field]: prev[field].includes(value) ? prev[field].filter((v) => v !== value) : [...prev[field], value],
     }));
     setSuccess(false);
   };
@@ -66,12 +142,22 @@ export default function Profile() {
     e.preventDefault();
     setFormError('');
     setSuccess(false);
-
     try {
       await updateProfile({
-        ...form,
-        budgetMin: form.budgetMin ? Number(form.budgetMin) : null,
-        budgetMax: form.budgetMax ? Number(form.budgetMax) : null,
+        stylePreferences: {
+          preferredStyles: form.preferredStyles,
+          favoriteColors: form.favoriteColors,
+          dislikedColors: form.dislikedColors,
+          preferredOccasions: form.preferredOccasions,
+          budgetMin: form.budgetMin ? Number(form.budgetMin) : null,
+          budgetMax: form.budgetMax ? Number(form.budgetMax) : null,
+        },
+        physicalProfile: {
+          height: form.height || null,
+          weight: form.weight || null,
+          consentGiven: form.consentGiven,
+        },
+        onboardingCompleted: true,
       });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -80,153 +166,30 @@ export default function Profile() {
     }
   };
 
+  const handleDeleteData = async () => {
+    await deleteProfileData();
+    setShowDeleteConfirm(false);
+  };
+
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error} onRetry={refetch} />;
 
   return (
-    <div className="animate-fade-in max-w-2xl">
-      <PageHeader
-        title="My Profile"
-        subtitle="Manage your fashion preferences and personal information."
+    <div className="animate-fade-in" style={{ maxWidth: '40rem' }}>
+      <PageHeader title="My Profile" subtitle="Manage your fashion preferences and personal information." />
+      <ProfileForm
+        authUser={authUser} form={form} setForm={setForm} toggleArrayItem={toggleArrayItem}
+        handleSubmit={handleSubmit} formError={formError} success={success} saving={saving}
+        setShowDeleteConfirm={setShowDeleteConfirm}
       />
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Info */}
-        <Card>
-          <h2 className="text-base font-semibold text-brand-900 mb-4">Basic Information</h2>
-          <div className="grid gap-4">
-            <Input
-              label="Name"
-              value={user?.name || ''}
-              disabled
-              className="opacity-60"
-            />
-            <Input
-              label="Email"
-              value={user?.email || ''}
-              disabled
-              className="opacity-60"
-            />
-            <Input
-              label="Height"
-              placeholder="e.g. 5'10 or 178 cm"
-              value={form.height}
-              onChange={(e) => {
-                setForm({ ...form, height: e.target.value });
-                setSuccess(false);
-              }}
-            />
-          </div>
-        </Card>
-
-        {/* Preferred Colors */}
-        <Card>
-          <h2 className="text-base font-semibold text-brand-900 mb-4">Preferred Colors</h2>
-          <div className="flex flex-wrap gap-2">
-            {COLOR_OPTIONS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                onClick={() => toggleArrayItem('preferredColors', color)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                  form.preferredColors.includes(color)
-                    ? 'bg-brand-900 text-white border-brand-900'
-                    : 'bg-white text-brand-600 border-brand-200 hover:border-brand-300'
-                }`}
-              >
-                {color}
-              </button>
-            ))}
-          </div>
-        </Card>
-
-        {/* Preferred Styles */}
-        <Card>
-          <h2 className="text-base font-semibold text-brand-900 mb-4">Preferred Styles</h2>
-          <div className="flex flex-wrap gap-2">
-            {STYLE_OPTIONS.map((style) => (
-              <button
-                key={style}
-                type="button"
-                onClick={() => toggleArrayItem('preferredStyles', style)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                  form.preferredStyles.includes(style)
-                    ? 'bg-brand-900 text-white border-brand-900'
-                    : 'bg-white text-brand-600 border-brand-200 hover:border-brand-300'
-                }`}
-              >
-                {style}
-              </button>
-            ))}
-          </div>
-        </Card>
-
-        {/* Budget Range */}
-        <Card>
-          <h2 className="text-base font-semibold text-brand-900 mb-4">Budget Range (₹)</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Minimum"
-              type="number"
-              placeholder="e.g. 500"
-              value={form.budgetMin}
-              onChange={(e) => {
-                setForm({ ...form, budgetMin: e.target.value });
-                setSuccess(false);
-              }}
-            />
-            <Input
-              label="Maximum"
-              type="number"
-              placeholder="e.g. 5000"
-              value={form.budgetMax}
-              onChange={(e) => {
-                setForm({ ...form, budgetMax: e.target.value });
-                setSuccess(false);
-              }}
-            />
-          </div>
-        </Card>
-
-        {/* Preferred Occasions */}
-        <Card>
-          <h2 className="text-base font-semibold text-brand-900 mb-4">Preferred Occasions</h2>
-          <div className="flex flex-wrap gap-2">
-            {OCCASION_OPTIONS.map((occasion) => (
-              <button
-                key={occasion}
-                type="button"
-                onClick={() => toggleArrayItem('preferredOccasions', occasion)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                  form.preferredOccasions.includes(occasion)
-                    ? 'bg-brand-900 text-white border-brand-900'
-                    : 'bg-white text-brand-600 border-brand-200 hover:border-brand-300'
-                }`}
-              >
-                {occasion}
-              </button>
-            ))}
-          </div>
-        </Card>
-
-        {/* Error / Success */}
-        {formError && (
-          <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-lg">
-            <p className="text-sm text-red-600">{formError}</p>
-          </div>
-        )}
-        {success && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-100 rounded-lg">
-            <Check className="w-4 h-4 text-emerald-600" />
-            <p className="text-sm text-emerald-600">Profile updated successfully.</p>
-          </div>
-        )}
-
-        <Button type="submit" loading={saving} size="lg">
-          <Save className="w-4 h-4" />
-          Save Profile
-        </Button>
-      </form>
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteData}
+        title="Delete profile data?"
+        message="This will permanently delete your style preferences and physical profile information. Your account and wardrobe items will not be affected."
+        confirmLabel="Delete"
+      />
     </div>
   );
 }

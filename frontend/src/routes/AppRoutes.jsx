@@ -8,11 +8,20 @@ import ProtectedRoute from './ProtectedRoute';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import Onboarding from '../pages/Onboarding';
 import Dashboard from '../pages/Dashboard';
 import Profile from '../pages/Profile';
 import Wardrobe from '../pages/Wardrobe';
 import Products from '../pages/Products';
-import ComingSoon from '../pages/ComingSoon';
+import OutfitRecommendations from '../pages/OutfitRecommendations';
+import FashionCritic from '../pages/FashionCritic';
+import ColorAnalyzer from '../pages/ColorAnalyzer';
+import OccasionStyling from '../pages/OccasionStyling';
+import ShoppingAssistant from '../pages/ShoppingAssistant';
+import TryOn from '../pages/TryOn';
+import Chatbot from '../pages/Chatbot';
+import SavedItems from '../pages/SavedItems';
+import Settings from '../pages/Settings';
 
 function RedirectIfAuth({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -27,23 +36,19 @@ export default function AppRoutes() {
       {/* Public routes */}
       <Route element={<AuthLayout />}>
         <Route path="/" element={<Home />} />
-        <Route
-          path="/login"
-          element={
-            <RedirectIfAuth>
-              <Login />
-            </RedirectIfAuth>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <RedirectIfAuth>
-              <Register />
-            </RedirectIfAuth>
-          }
-        />
+        <Route path="/login" element={<RedirectIfAuth><Login /></RedirectIfAuth>} />
+        <Route path="/register" element={<RedirectIfAuth><Register /></RedirectIfAuth>} />
       </Route>
+
+      {/* Onboarding (protected, but outside main sidebar layout) */}
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute>
+            <Onboarding />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Protected routes */}
       <Route
@@ -57,12 +62,15 @@ export default function AppRoutes() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/wardrobe" element={<Wardrobe />} />
         <Route path="/products" element={<Products />} />
-
-        {/* Coming Soon pages */}
-        <Route path="/try-on" element={<ComingSoon />} />
-        <Route path="/fashion-critic" element={<ComingSoon />} />
-        <Route path="/ai-dna" element={<ComingSoon />} />
-        <Route path="/ai-advisor" element={<ComingSoon />} />
+        <Route path="/outfits" element={<OutfitRecommendations />} />
+        <Route path="/fashion-critic" element={<FashionCritic />} />
+        <Route path="/colors" element={<ColorAnalyzer />} />
+        <Route path="/styling/occasion" element={<OccasionStyling />} />
+        <Route path="/shopping" element={<ShoppingAssistant />} />
+        <Route path="/try-on" element={<TryOn />} />
+        <Route path="/chat" element={<Chatbot />} />
+        <Route path="/saved" element={<SavedItems />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
 
       {/* Catch-all */}

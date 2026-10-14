@@ -9,7 +9,6 @@ export default function Modal({
   footer,
   size = 'md',
 }) {
-  // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -21,56 +20,36 @@ export default function Modal({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  const sizes = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-lg',
-    xl: 'max-w-xl',
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
+    <div className="modal__backdrop" onClick={onClose}>
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div
-        className={`
-          relative w-full ${sizes[size]}
-          bg-white rounded-2xl shadow-modal
-          animate-slide-up
-          max-h-[90vh] flex flex-col
-        `}
+        className={`modal modal--${size} animate-slide-up`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-brand-100">
-            <h3 className="text-lg font-semibold text-brand-900">{title}</h3>
-            <button
-              onClick={onClose}
-              className="p-1 text-brand-400 hover:text-brand-600 hover:bg-brand-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
+          <div className="modal__header">
+            <h3 className="modal__title">{title}</h3>
+            <button className="modal__close" onClick={onClose} aria-label="Close dialog">
+              <X size={20} />
             </button>
           </div>
         )}
-
-        {/* Body */}
-        <div className="px-6 py-4 overflow-y-auto custom-scrollbar">
-          {children}
-        </div>
-
-        {/* Footer */}
-        {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-100">
-            {footer}
-          </div>
-        )}
+        <div className="modal__body custom-scrollbar">{children}</div>
+        {footer && <div className="modal__footer">{footer}</div>}
       </div>
     </div>
   );

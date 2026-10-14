@@ -1,0 +1,20 @@
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+.card--padded { padding: var(--space-6); }
+.card--hover {
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
+}
+.card--hover:hover {
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.card--glass {
+  background: rgba(19, 19, 24, 0.6);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+}

@@ -1,97 +1,38 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const prisma = require('../config/db');
-const env = require('../config/env');
+const User = require('../models/User');
 
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, env.JWT_SECRET, { expiresIn: '7d' });
-};
+/**
+ * Registration and login happen entirely on the client via Firebase
+ * Authentication (email/password, and Google sign-in where configured).
+ * The backend never handles passwords. These endpoints only sync/read
+ * the MongoDB profile that mirrors the Firebase-authenticated user.
+ */
 
-const register = async (req, res, next) => {
+// POST /api/auth/sync — called right after Firebase signup to ensure the
+// Mongo profile has the correct display name (authMiddleware already
+// lazily creates a baseline User document for any authenticated request).
+const sync = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const { name } = req.body;
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: 'An account with this email already exists.',
-      });
+    if (name && name.trim() && name.trim() !== req.user.name) {
+      req.user.name = name.trim();
+      await req.user.save();
     }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create user
-    const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword },
-      select: { id: true, name: true, email: true, createdAt: true },
-    });
-
-    // Generate token
-    const token = generateToken(user.id);
-
-    res.status(201).json({
-      success: true,
-      message: 'Account created successfully.',
-      data: { user, token },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-
-    // Find user
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password.',
-      });
-    }
-
-    // Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password.',
-      });
-    }
-
-    // Generate token
-    const token = generateToken(user.id);
 
     res.json({
       success: true,
-      message: 'Login successful.',
-      data: {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          createdAt: user.createdAt,
-        },
-        token,
-      },
+      message: 'Account synced.',
+      data: { user: req.user },
     });
   } catch (error) {
     next(error);
   }
 };
 
+// GET /api/auth/me
 const getMe = async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: { id: true, name: true, email: true, createdAt: true },
-    });
+    const user = await User.findById(req.user._id);
 
     if (!user) {
       return res.status(404).json({
@@ -109,4 +50,4 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getMe };
+module.exports = { sync, getMe };

@@ -62,25 +62,13 @@ const validate = (schema) => {
 };
 
 // Predefined validation schemas
-const registerSchema = {
-  name: { required: true, label: 'Name', minLength: 2, maxLength: 50 },
-  email: { required: true, label: 'Email', type: 'email' },
-  password: { required: true, label: 'Password', minLength: 6 },
-  confirmPassword: { required: true, label: 'Confirm Password', match: 'password', matchLabel: 'Password' },
-};
-
-const loginSchema = {
-  email: { required: true, label: 'Email', type: 'email' },
-  password: { required: true, label: 'Password' },
-};
+// Note: authentication (registration/login) is handled by Firebase Auth on
+// the client; the backend only verifies ID tokens, so no auth schemas
+// are needed here anymore.
 
 const profileSchema = {
   height: { label: 'Height' },
-  preferredColors: { label: 'Preferred Colors', isArray: true },
-  preferredStyles: { label: 'Preferred Styles', isArray: true },
-  budgetMin: { label: 'Budget Min', isNumber: true },
-  budgetMax: { label: 'Budget Max', isNumber: true },
-  preferredOccasions: { label: 'Preferred Occasions', isArray: true },
+  weight: { label: 'Weight' },
 };
 
 const wardrobeSchema = {
@@ -88,14 +76,32 @@ const wardrobeSchema = {
   category: {
     required: true,
     label: 'Category',
-    enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Accessories'],
+    enum: ['Tops', 'Shirts', 'T-Shirts', 'Trousers', 'Jeans', 'Dresses', 'Footwear', 'Outerwear', 'Accessories'],
   },
+};
+
+const outfitRecommendSchema = {
+  occasion: { label: 'Occasion' },
+};
+
+const colorAnalyzeSchema = {
+  colors: { required: true, label: 'Colors', isArray: true },
+};
+
+const shoppingPlanSchema = {
+  budget: { required: true, label: 'Budget', isNumber: true },
+};
+
+const chatSchema = {
+  message: { required: true, label: 'Message', minLength: 1, maxLength: 1000 },
 };
 
 module.exports = {
   validate,
-  registerSchema,
-  loginSchema,
   profileSchema,
   wardrobeSchema,
+  outfitRecommendSchema,
+  colorAnalyzeSchema,
+  shoppingPlanSchema,
+  chatSchema,
 };

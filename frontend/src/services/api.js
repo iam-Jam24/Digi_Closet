@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { auth } from '../firebase';
 
 const API_BASE_URL = '/api';
 
@@ -9,11 +10,12 @@ const api = axios.create({
   },
 });
 
-// Request interceptor — attach JWT token
+// Request interceptor — attach the current Firebase ID token.
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('digi_closet_token');
-    if (token) {
+  async (config) => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const token = await currentUser.getIdToken();
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -26,10 +28,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('digi_closet_token');
-      localStorage.removeItem('digi_closet_user');
-
-      // Only redirect if not already on auth pages
       const path = window.location.pathname;
       if (path !== '/login' && path !== '/register' && path !== '/') {
         window.location.href = '/login';

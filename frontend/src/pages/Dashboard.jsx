@@ -1,116 +1,307 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Heart, Shirt, Camera, UserCircle, Plus, ArrowRight,
-  Sparkles, MessageSquare, Dna, Lock,
+  Heart, Shirt, Camera, UserCircle, Plus, ArrowRight, Wand2,
+  MessageSquare, Palette, CalendarHeart, Wallet, Bot, ShoppingBag,
+  Cloud, Sun, CloudRain, Snowflake, CloudLightning, CloudDrizzle, Wind,
+  Thermometer, MapPin, BarChart3, TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
+import useWardrobe from '../hooks/useWardrobe';
+import useOutfits from '../hooks/useOutfits';
+import useWeather from '../hooks/useWeather';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import EmptyState from '../components/EmptyState';
+
+const quickLinks = [
+  { to: '/outfits', label: 'Outfit Recommendations', icon: Wand2 },
+  { to: '/wardrobe', label: 'Digital Wardrobe', icon: Shirt },
+  { to: '/fashion-critic', label: 'Fashion Critic', icon: MessageSquare },
+  { to: '/products', label: 'Smart Clothes Finder', icon: ShoppingBag },
+  { to: '/shopping', label: 'Budget Assistant', icon: Wallet },
+  { to: '/try-on', label: 'Virtual Try-On', icon: Camera },
+  { to: '/styling/occasion', label: 'Occasion Styling', icon: CalendarHeart },
+  { to: '/colors', label: 'Color Analyzer', icon: Palette },
+  { to: '/chat', label: 'Fashion Chatbot', icon: Bot },
+];
+
+const WEATHER_ICONS = {
+  'Clear sky': Sun, 'Mainly clear': Sun, 'Partly cloudy': Cloud, 'Overcast': Cloud,
+  'Fog': Cloud, 'Depositing rime fog': Cloud,
+  'Light drizzle': CloudDrizzle, 'Moderate drizzle': CloudDrizzle, 'Dense drizzle': CloudDrizzle,
+  'Slight rain': CloudRain, 'Moderate rain': CloudRain, 'Heavy rain': CloudRain,
+  'Rain showers': CloudRain, 'Moderate rain showers': CloudRain, 'Violent rain showers': CloudRain,
+  'Slight snow': Snowflake, 'Moderate snow': Snowflake, 'Heavy snow': Snowflake,
+  'Thunderstorm': CloudLightning, 'Thunderstorm with hail': CloudLightning,
+};
+
+function getWeatherTip(condition, temp) {
+  if (temp >= 35) return 'Scorching! Go for breathable cotton, linen, and light colors.';
+  if (temp >= 28) return 'It\'s warm — opt for light fabrics and shorter sleeves.';
+  if (temp >= 18) return 'Pleasant weather! Great for layering with a light jacket.';
+  if (temp >= 10) return 'Getting chilly — pair with a sweater or a jacket.';
+  if (temp < 10) return 'Cold out there — go for warm layers, thermals, and coats.';
+  if (condition?.includes('rain') || condition?.includes('drizzle')) return 'Carry an umbrella and avoid suede/delicate fabrics.';
+  return 'Dress comfortably for the weather!';
+}
+
+function WeatherWidget({ weather, loading, onRefresh, city }) {
+  if (loading) {
+    return (
+      <Card className="weather-widget weather-widget--loading">
+        <div className="weather-widget__shimmer" />
+        <p className="text-muted" style={{ fontSize: 'var(--text-sm)' }}>Fetching weather…</p>
+      </Card>
+    );
+  }
+
+  if (!weather || !weather.found) {
+    return (
+      <Card className="weather-widget weather-widget--empty">
+        <Cloud size={28} color="var(--text-muted)" />
+        <p className="text-muted" style={{ fontSize: 'var(--text-sm)' }}>
+          {city ? `Couldn't find weather for "${city}"` : 'Enable location to see weather-based outfit tips'}
+        </p>
+        <Button size="sm" variant="ghost" onClick={onRefresh}>Retry</Button>
+      </Card>
+    );
+  }
+
+  const WeatherIcon = WEATHER_ICONS[weather.condition] || Cloud;
+  const tip = getWeatherTip(weather.condition, weather.temperatureC);
+
+  return (
+    <Card className="weather-widget">
+      <div className="weather-widget__header">
+        <div className="weather-widget__icon-wrap">
+          <WeatherIcon size={28} />
+        </div>
+        <div>
+          <div className="weather-widget__temp">{Math.round(weather.temperatureC)}°C</div>
+          <div className="weather-widget__condition">{weather.condition}</div>
+        </div>
+      </div>
+      <div className="weather-widget__details">
+        <span className="weather-widget__detail"><MapPin size={12} /> {weather.city}</span>
+        <span className="weather-widget__detail"><Wind size={12} /> {weather.windSpeedKmh} km/h</span>
+        <span className="weather-widget__detail"><Thermometer size={12} /> Humidity {weather.humidity}%</span>
+      </div>
+      <p className="weather-widget__tip">💡 {tip}</p>
+    </Card>
+  );
+}
+
+function WardrobeAnalytics({ items }) {
+  if (items.length === 0) return null;
+
+  const catCounts = {};
+  const colorCounts = {};
+  items.forEach((item) => {
+    catCounts[item.category] = (catCounts[item.category] || 0) + 1;
+    (item.colors || []).forEach((c) => { colorCounts[c] = (colorCounts[c] || 0) + 1; });
+  });
+
+  const sortedCategories = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
+  const maxCatCount = sortedCategories[0]?.[1] || 1;
+  const topColors = Object.entries(colorCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  const gapCategories = ['Tops', 'Shirts', 'T-Shirts', 'Trousers', 'Jeans', 'Footwear', 'Outerwear'].filter(
+    (cat) => !catCounts[cat]
+  );
+
+  return (
+    <Card className="section">
+      <h2 className="section__title"><BarChart3 size={18} style={{ verticalAlign: 'middle', marginRight: 'var(--space-2)' }} />Wardrobe Analytics</h2>
+      <div className="analytics-grid">
+        <div>
+          <h3 className="analytics-subtitle">Category Distribution</h3>
+          <div className="analytics-bars">
+            {sortedCategories.map(([cat, count]) => (
+              <div key={cat} className="analytics-bar-row">
+                <span className="analytics-bar-label">{cat}</span>
+                <div className="analytics-bar-track">
+                  <div className="analytics-bar-fill" style={{ width: `${(count / maxCatCount) * 100}%` }} />
+                </div>
+                <span className="analytics-bar-count">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h3 className="analytics-subtitle">Top Colors</h3>
+          <div className="analytics-color-chips">
+            {topColors.map(([color, count]) => (
+              <span key={color} className="analytics-color-chip">
+                <span className="analytics-color-dot" style={{ background: color.toLowerCase() }} />
+                {color} <span className="text-muted">({count})</span>
+              </span>
+            ))}
+          </div>
+          {gapCategories.length > 0 && (
+            <div style={{ marginTop: 'var(--space-4)' }}>
+              <h3 className="analytics-subtitle"><TrendingUp size={14} style={{ verticalAlign: 'middle', marginRight: 'var(--space-1)' }} />Wardrobe Gaps</h3>
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                You're missing: {gapCategories.join(', ')}. Adding these will help AI build better outfits.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, firebaseUser } = useAuth();
   const navigate = useNavigate();
-  const [wardrobeCount, setWardrobeCount] = useState(0);
+  const { items, loading: wardrobeLoading } = useWardrobe();
+  const { saved, loading: outfitsLoading } = useOutfits();
+  const { weather, loading: weatherLoading, fetchWeather } = useWeather();
+  const [weatherCity, setWeatherCity] = useState('');
 
+  // Auto-detect location on mount for weather
   useEffect(() => {
-    const fetchCounts = async () => {
-      try {
-        const { data } = await api.get('/wardrobe');
-        setWardrobeCount(data.data.count);
-      } catch {
-        // silently fail — stat just shows 0
-      }
-    };
-    fetchCounts();
-  }, []);
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          try {
+            const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=&latitude=${latitude}&longitude=${longitude}&count=1`);
+            const geo = await res.json();
+            const cityName = geo.results?.[0]?.name;
+            if (cityName) {
+              setWeatherCity(cityName);
+              fetchWeather(cityName);
+            } else {
+              // Fallback — try reverse with a generic query
+              fetchWeather('Delhi');
+              setWeatherCity('Delhi');
+            }
+          } catch {
+            fetchWeather('Delhi');
+            setWeatherCity('Delhi');
+          }
+        },
+        () => {
+          // Geolocation denied — use profile or default
+          fetchWeather('Delhi');
+          setWeatherCity('Delhi');
+        },
+        { timeout: 5000 }
+      );
+    } else {
+      fetchWeather('Delhi');
+      setWeatherCity('Delhi');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const firstName = (user?.name || firebaseUser?.displayName || '').split(' ')[0] || 'there';
+  const recentItems = items.slice(0, 4);
+
+  const totalColors = new Set(items.flatMap((i) => i.colors || [])).size;
   const statCards = [
-    { icon: Heart, label: 'Saved Looks', value: '0', color: 'bg-rose-50 text-rose-600' },
-    { icon: Shirt, label: 'Wardrobe Items', value: String(wardrobeCount), color: 'bg-sky-50 text-sky-600' },
-    { icon: Camera, label: 'Try-Ons', value: '0', color: 'bg-violet-50 text-violet-600' },
-    { icon: UserCircle, label: 'Style Profile', value: 'Not completed', color: 'bg-amber-50 text-amber-600' },
-  ];
-
-  const quickActions = [
-    { label: 'Add Wardrobe Item', icon: Plus, onClick: () => navigate('/wardrobe') },
-    { label: 'Update Profile', icon: UserCircle, onClick: () => navigate('/profile') },
-    { label: 'Explore Products', icon: ArrowRight, onClick: () => navigate('/products') },
-  ];
-
-  const comingSoon = [
-    {
-      icon: Sparkles,
-      title: 'AI Virtual Try-On',
-      description: 'See how clothes look on you before you buy. Powered by AI vision technology.',
-    },
-    {
-      icon: MessageSquare,
-      title: 'AI Fashion Critic',
-      description: 'Get instant feedback on your outfits — color coordination, styling, and more.',
-    },
-    {
-      icon: Dna,
-      title: 'AI DNA',
-      description: 'Discover your unique style DNA. A personalized fashion profile built by AI.',
-    },
+    { icon: Shirt, label: 'Wardrobe Items', value: wardrobeLoading ? '—' : String(items.length), color: 'var(--color-info)' },
+    { icon: Heart, label: 'Saved Outfits', value: outfitsLoading ? '—' : String(saved.length), color: 'var(--accent-violet)' },
+    { icon: Palette, label: 'Unique Colors', value: wardrobeLoading ? '—' : String(totalColors), color: 'var(--color-success)' },
+    { icon: UserCircle, label: 'Style Profile', value: user?.onboardingCompleted ? 'Complete' : 'Not set up', color: 'var(--color-warning)' },
   ];
 
   return (
     <div className="animate-fade-in">
-      {/* Greeting */}
-      <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-brand-900 font-display">
-          Welcome back, {user?.name?.split(' ')[0]}
-        </h1>
-        <p className="text-brand-500 mt-1">
-          Let&apos;s make your next outfit your best one.
-        </p>
+      <div className="section">
+        <h1 className="page-header__title">Welcome back, {firstName}</h1>
+        <p className="page-header__subtitle">Let&apos;s make your next outfit your best one.</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {statCards.map(({ icon: Icon, label, value, color }) => (
-          <Card key={label} className="flex items-start gap-4">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
-              <Icon className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-brand-400 font-medium">{label}</p>
-              <p className="text-lg font-bold text-brand-900 mt-0.5 truncate">{value}</p>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold text-brand-900 mb-4">Quick Actions</h2>
-        <div className="flex flex-wrap gap-3">
-          {quickActions.map(({ label, icon: Icon, onClick }) => (
-            <Button key={label} variant="outline" size="md" onClick={onClick}>
-              <Icon className="w-4 h-4" />
-              {label}
-            </Button>
+      {/* Weather + Stats Row */}
+      <div className="dashboard-top-grid section">
+        <WeatherWidget
+          weather={weather}
+          loading={weatherLoading}
+          city={weatherCity}
+          onRefresh={() => fetchWeather(weatherCity || 'Delhi')}
+        />
+        <div className="grid grid--stats">
+          {statCards.map(({ icon: Icon, label, value, color }) => (
+            <Card key={label} className="stat-card">
+              <div className="stat-card__icon" style={{ background: `${color}22`, color }}>
+                <Icon size={20} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <p className="stat-card__label">{label}</p>
+                <p className="stat-card__value">{value}</p>
+              </div>
+            </Card>
           ))}
         </div>
       </div>
 
-      {/* Coming Soon */}
-      <div>
-        <h2 className="text-lg font-semibold text-brand-900 mb-4">Coming Soon</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {comingSoon.map(({ icon: Icon, title, description }) => (
-            <Card key={title} hover className="relative overflow-hidden">
-              <div className="absolute top-4 right-4">
-                <Lock className="w-4 h-4 text-brand-300" />
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center mb-3">
-                <Icon className="w-5 h-5 text-brand-600" />
-              </div>
-              <h3 className="text-sm font-semibold text-brand-900 mb-1">{title}</h3>
-              <p className="text-xs text-brand-500 leading-relaxed">{description}</p>
+      {/* Quick Actions */}
+      <div className="section">
+        <h2 className="section__title">Quick Actions</h2>
+        <div className="quick-actions">
+          <Button variant="outline" onClick={() => navigate('/wardrobe')}>
+            <Plus size={16} /> Add Wardrobe Item
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/outfits')}>
+            <Wand2 size={16} /> Get Outfit Ideas
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/profile')}>
+            <UserCircle size={16} /> Update Profile
+          </Button>
+          {weather?.found && (
+            <Button variant="outline" onClick={() => navigate('/outfits')}>
+              <Sun size={16} /> Weather-Based Outfit
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Wardrobe Analytics */}
+      {!wardrobeLoading && <WardrobeAnalytics items={items} />}
+
+      {/* Recently Added */}
+      <div className="section">
+        <h2 className="section__title">Recently Added</h2>
+        {recentItems.length === 0 ? (
+          <EmptyState
+            icon={Shirt}
+            title="Your wardrobe is empty"
+            description="Add your first clothing item to start getting personalized outfit recommendations."
+            actionLabel="Add Item"
+            onAction={() => navigate('/wardrobe')}
+          />
+        ) : (
+          <div className="grid grid--cards">
+            {recentItems.map((item) => (
+              <Card key={item._id} padding={false} hover style={{ overflow: 'hidden' }}>
+                <div className="clothing-card__image-wrap">
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt={item.name} className="clothing-card__image" />
+                  ) : (
+                    <Shirt size={28} color="var(--text-muted)" />
+                  )}
+                </div>
+                <div className="clothing-card__body">
+                  <p className="clothing-card__name">{item.name}</p>
+                  <p className="clothing-card__category">{item.category}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Explore All Features */}
+      <div className="section">
+        <h2 className="section__title">Explore All Features</h2>
+        <div className="feature-grid">
+          {quickLinks.map(({ to, label, icon: Icon }) => (
+            <Card key={to} hover className="feature-tile" onClick={() => navigate(to)} style={{ cursor: 'pointer' }}>
+              <div className="feature-tile__icon"><Icon size={20} /></div>
+              <h3 className="feature-tile__title">{label}</h3>
+              <ArrowRight size={14} color="var(--text-muted)" />
             </Card>
           ))}
         </div>

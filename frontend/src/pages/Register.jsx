@@ -5,16 +5,17 @@ import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
 import Button from '../components/Button';
 
+const FRIENDLY_ERRORS = {
+  'auth/email-already-in-use': 'An account with this email already exists.',
+  'auth/weak-password': 'Password should be at least 6 characters.',
+  'auth/invalid-email': 'Please enter a valid email address.',
+};
+
 export default function Register() {
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -30,12 +31,10 @@ export default function Register() {
       setError('Please fill in all fields.');
       return;
     }
-
     if (form.password.length < 6) {
       setError('Password must be at least 6 characters.');
       return;
     }
-
     if (form.password !== form.confirmPassword) {
       setError('Passwords do not match.');
       return;
@@ -43,79 +42,54 @@ export default function Register() {
 
     try {
       setLoading(true);
-      await register(form.name, form.email, form.password, form.confirmPassword);
-      navigate('/dashboard');
+      await register(form.name, form.email, form.password);
+      navigate('/onboarding');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(FRIENDLY_ERRORS[err.code] || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setError('');
+    try {
+      setLoading(true);
+      await loginWithGoogle();
+      navigate('/onboarding');
+    } catch (err) {
+      setError(FRIENDLY_ERRORS[err.code] || 'Google sign-in failed.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-900 rounded-xl mb-4">
-            <Scissors className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-brand-900 font-display">Create your account</h1>
-          <p className="text-sm text-brand-500 mt-1">Start your fashion journey today</p>
+    <div className="centered-page">
+      <div className="auth-card">
+        <div className="auth-card__header">
+          <div className="auth-card__logo"><Scissors size={24} /></div>
+          <h1 className="auth-card__title">Create your account</h1>
+          <p className="auth-card__subtitle">Start your fashion journey today</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Full Name"
-            name="name"
-            placeholder="John Doe"
-            icon={User}
-            value={form.name}
-            onChange={handleChange}
-          />
-          <Input
-            label="Email"
-            type="email"
-            name="email"
-            placeholder="you@example.com"
-            icon={Mail}
-            value={form.email}
-            onChange={handleChange}
-          />
-          <Input
-            label="Password"
-            type="password"
-            name="password"
-            placeholder="At least 6 characters"
-            icon={Lock}
-            value={form.password}
-            onChange={handleChange}
-          />
-          <Input
-            label="Confirm Password"
-            type="password"
-            name="confirmPassword"
-            placeholder="Confirm your password"
-            icon={Lock}
-            value={form.confirmPassword}
-            onChange={handleChange}
-          />
+        <form onSubmit={handleSubmit} className="auth-card__form">
+          <Input label="Full Name" name="name" placeholder="John Doe" icon={User} value={form.name} onChange={handleChange} />
+          <Input label="Email" type="email" name="email" placeholder="you@example.com" icon={Mail} value={form.email} onChange={handleChange} />
+          <Input label="Password" type="password" name="password" placeholder="At least 6 characters" icon={Lock} value={form.password} onChange={handleChange} />
+          <Input label="Confirm Password" type="password" name="confirmPassword" placeholder="Confirm your password" icon={Lock} value={form.confirmPassword} onChange={handleChange} />
 
-          {error && (
-            <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-lg">
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
-          )}
+          {error && <div className="alert alert--error">{error}</div>}
 
-          <Button type="submit" fullWidth loading={loading} className="mt-2">
-            Create Account
+          <Button type="submit" fullWidth loading={loading}>Create Account</Button>
+          <Button type="button" variant="outline" fullWidth onClick={handleGoogle} disabled={loading}>
+            Continue with Google
           </Button>
         </form>
 
-        <p className="text-center text-sm text-brand-500 mt-6">
+        <p className="auth-card__footer">
           Already have an account?{' '}
-          <Link to="/login" className="font-medium text-brand-900 hover:underline">
-            Sign in
-          </Link>
+          <Link to="/login" className="auth-card__link">Sign in</Link>
         </p>
       </div>
     </div>

@@ -7,11 +7,10 @@ export default function useWardrobe() {
   const [error, setError] = useState(null);
   const [adding, setAdding] = useState(false);
 
-  const fetchItems = useCallback(async (category) => {
+  const fetchItems = useCallback(async (params = {}) => {
     try {
       setLoading(true);
       setError(null);
-      const params = category ? { category } : {};
       const { data } = await api.get('/wardrobe', { params });
       setItems(data.data.items);
     } catch (err) {
@@ -37,20 +36,50 @@ export default function useWardrobe() {
     }
   }, []);
 
+  const updateItem = useCallback(async (id, itemData) => {
+    try {
+      setError(null);
+      const { data } = await api.put(`/wardrobe/${id}`, itemData);
+      setItems((prev) => prev.map((i) => (i._id === id ? data.data.item : i)));
+      return data;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update item.');
+      throw err;
+    }
+  }, []);
+
   const deleteItem = useCallback(async (id) => {
     try {
       setError(null);
       await api.delete(`/wardrobe/${id}`);
-      setItems((prev) => prev.filter((item) => item.id !== id));
+      setItems((prev) => prev.filter((item) => item._id !== id));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to delete item.');
       throw err;
     }
   }, []);
 
+  const uploadImage = useCallback(async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const { data } = await api.post('/wardrobe/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data.data;
+  }, []);
+
+  const classifyImage = useCallback(async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const { data } = await api.post('/wardrobe/classify', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data.data.suggestion;
+  }, []);
+
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
 
-  return { items, loading, error, adding, addItem, deleteItem, fetchItems };
+  return { items, loading, error, adding, addItem, updateItem, deleteItem, uploadImage, classifyImage, fetchItems };
 }

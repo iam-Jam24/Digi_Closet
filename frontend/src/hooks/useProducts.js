@@ -3,6 +3,7 @@ import api from '../services/api';
 
 export default function useProducts() {
   const [products, setProducts] = useState([]);
+  const [isDevCatalog, setIsDevCatalog] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -11,7 +12,6 @@ export default function useProducts() {
       setLoading(true);
       setError(null);
 
-      // Clean empty filter values
       const params = {};
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== '' && value !== null && value !== undefined) {
@@ -21,6 +21,7 @@ export default function useProducts() {
 
       const { data } = await api.get('/products', { params });
       setProducts(data.data.products);
+      setIsDevCatalog(Boolean(data.data.isDevCatalog));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load products.');
     } finally {
@@ -28,9 +29,14 @@ export default function useProducts() {
     }
   }, []);
 
+  const saveProduct = useCallback(async (productId) => {
+    const { data } = await api.post('/products/saved', { productId });
+    return data;
+  }, []);
+
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
-  return { products, loading, error, fetchProducts };
+  return { products, isDevCatalog, loading, error, fetchProducts, saveProduct };
 }

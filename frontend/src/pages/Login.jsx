@@ -5,11 +5,19 @@ import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
 import Button from '../components/Button';
 
+const FRIENDLY_ERRORS = {
+  'auth/invalid-credential': 'Invalid email or password.',
+  'auth/user-not-found': 'No account found with this email.',
+  'auth/wrong-password': 'Invalid email or password.',
+  'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
+  'auth/invalid-email': 'Please enter a valid email address.',
+};
+
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -31,59 +39,49 @@ export default function Login() {
       await login(form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      setError(FRIENDLY_ERRORS[err.code] || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setError('');
+    try {
+      setLoading(true);
+      await loginWithGoogle();
+      navigate('/dashboard');
+    } catch (err) {
+      setError(FRIENDLY_ERRORS[err.code] || 'Google sign-in failed.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-900 rounded-xl mb-4">
-            <Scissors className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-brand-900 font-display">Welcome back</h1>
-          <p className="text-sm text-brand-500 mt-1">Sign in to your account</p>
+    <div className="centered-page">
+      <div className="auth-card">
+        <div className="auth-card__header">
+          <div className="auth-card__logo"><Scissors size={24} /></div>
+          <h1 className="auth-card__title">Welcome back</h1>
+          <p className="auth-card__subtitle">Sign in to your account</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Email"
-            type="email"
-            name="email"
-            placeholder="you@example.com"
-            icon={Mail}
-            value={form.email}
-            onChange={handleChange}
-          />
-          <Input
-            label="Password"
-            type="password"
-            name="password"
-            placeholder="Enter your password"
-            icon={Lock}
-            value={form.password}
-            onChange={handleChange}
-          />
+        <form onSubmit={handleSubmit} className="auth-card__form">
+          <Input label="Email" type="email" name="email" placeholder="you@example.com" icon={Mail} value={form.email} onChange={handleChange} />
+          <Input label="Password" type="password" name="password" placeholder="Enter your password" icon={Lock} value={form.password} onChange={handleChange} />
 
-          {error && (
-            <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-lg">
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
-          )}
+          {error && <div className="alert alert--error">{error}</div>}
 
-          <Button type="submit" fullWidth loading={loading} className="mt-2">
-            Sign In
+          <Button type="submit" fullWidth loading={loading}>Sign In</Button>
+          <Button type="button" variant="outline" fullWidth onClick={handleGoogle} disabled={loading}>
+            Continue with Google
           </Button>
         </form>
 
-        <p className="text-center text-sm text-brand-500 mt-6">
+        <p className="auth-card__footer">
           Don&apos;t have an account?{' '}
-          <Link to="/register" className="font-medium text-brand-900 hover:underline">
-            Create one
-          </Link>
+          <Link to="/register" className="auth-card__link">Create one</Link>
         </p>
       </div>
     </div>

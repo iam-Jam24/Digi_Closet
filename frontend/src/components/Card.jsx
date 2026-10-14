@@ -3,19 +3,19 @@ export default function Card({
   className = '',
   hover = false,
   padding = true,
+  glass = false,
   ...props
 }) {
+  const classes = [
+    'card',
+    padding ? 'card--padded' : '',
+    hover ? 'card--hover' : '',
+    glass ? 'card--glass' : '',
+    className,
+  ].filter(Boolean).join(' ');
+
   return (
-    <div
-      className={`
-        bg-white rounded-2xl border border-brand-100
-        shadow-card
-        ${hover ? 'transition-shadow duration-200 hover:shadow-card-hover' : ''}
-        ${padding ? 'p-6' : ''}
-        ${className}
-      `}
-      {...props}
-    >
+    <div className={classes} {...props}>
       {children}
     </div>
   );

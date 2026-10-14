@@ -1,0 +1,25 @@
+.error-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-4);
+  text-align: center;
+}
+.error-message__icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--radius-xl);
+  background: var(--color-danger-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-4);
+  color: var(--color-danger);
+}
+.error-message__text {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  max-width: 24rem;
+  margin-bottom: var(--space-4);
+}

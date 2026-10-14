@@ -1,7 +1,12 @@
-const jwt = require('jsonwebtoken');
-const env = require('../config/env');
-const prisma = require('../config/db');
+const { auth } = require('../config/firebaseAdmin');
+const User = require('../models/User');
 
+/**
+ * Verifies the Firebase ID token sent in the Authorization header,
+ * then resolves (or lazily creates) the corresponding MongoDB User
+ * document. Downstream handlers must use req.user._id (Mongo ObjectId)
+ * for all ownership checks — never trust any user id supplied by the client.
+ */
 const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -13,37 +18,34 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    const token = authHeader.split(' ')[1];
+    const idToken = authHeader.split(' ')[1];
 
-    const decoded = jwt.verify(token, env.JWT_SECRET);
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { id: true, name: true, email: true },
-    });
-
-    if (!user) {
+    let decoded;
+    try {
+      decoded = await auth.verifyIdToken(idToken);
+    } catch (err) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid token. User not found.',
+        message: 'Invalid or expired token.',
+      });
+    }
+
+    let user = await User.findOne({ firebaseUid: decoded.uid });
+
+    // Lazily create the Mongo profile on first authenticated request
+    // (covers users created directly via Firebase Auth, e.g. right after signup).
+    if (!user) {
+      user = await User.create({
+        firebaseUid: decoded.uid,
+        name: decoded.name || decoded.email?.split('@')[0] || 'New User',
+        email: decoded.email,
       });
     }
 
     req.user = user;
+    req.firebaseUser = decoded;
     next();
   } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token.',
-      });
-    }
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token expired.',
-      });
-    }
     next(error);
   }
 };

@@ -1,12 +1,11 @@
 const express = require('express');
-const { register, login, getMe } = require('../controllers/authController');
 const authenticate = require('../middleware/authMiddleware');
-const { validate, registerSchema, loginSchema } = require('../middleware/validateMiddleware');
+const { sync, getMe } = require('../controllers/authController');
 
 const router = express.Router();
 
-router.post('/register', validate(registerSchema), register);
-router.post('/login', validate(loginSchema), login);
-router.get('/me', authenticate, getMe);
+router.use(authenticate);
+router.post('/sync', sync);
+router.get('/me', getMe);
 
 module.exports = router;

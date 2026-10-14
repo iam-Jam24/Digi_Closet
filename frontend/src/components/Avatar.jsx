@@ -4,13 +4,6 @@ export default function Avatar({
   size = 'md',
   className = '',
 }) {
-  const sizes = {
-    sm: 'w-8 h-8 text-xs',
-    md: 'w-10 h-10 text-sm',
-    lg: 'w-12 h-12 text-base',
-    xl: 'w-16 h-16 text-lg',
-  };
-
   const initials = name
     .split(' ')
     .map((n) => n[0])
@@ -18,28 +11,11 @@ export default function Avatar({
     .toUpperCase()
     .slice(0, 2);
 
+  const classes = ['avatar', `avatar--${size}`, className].filter(Boolean).join(' ');
+
   if (src) {
-    return (
-      <img
-        src={src}
-        alt={name}
-        className={`${sizes[size]} rounded-full object-cover ${className}`}
-      />
-    );
+    return <img src={src} alt={name} className={classes} />;
   }
 
-  return (
-    <div
-      className={`
-        ${sizes[size]}
-        rounded-full
-        bg-brand-900 text-white
-        flex items-center justify-center
-        font-semibold
-        ${className}
-      `}
-    >
-      {initials || '?'}
-    </div>
-  );
+  return <div className={classes}>{initials || '?'}</div>;
 }
