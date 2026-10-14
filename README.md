@@ -15,25 +15,23 @@
 
 ## Table of Contents
 
-- [A. Project Title & Introduction](#a-project-title--introduction)
-- [B. Features & Implementation Status](#b-features--implementation-status)
-- [C. Technology Stack](#c-technology-stack)
-- [D. Project Structure](#d-project-structure)
-- [E. Prerequisites](#e-prerequisites)
-- [F. Installation](#f-installation)
-- [G. Environment Variables](#g-environment-variables)
-- [H. Running the Application](#h-running-the-application)
-- [I. Available Scripts](#i-available-scripts)
-- [J. API Documentation Overview](#j-api-documentation-overview)
-- [K. Troubleshooting Guide](#k-troubleshooting-guide)
-- [L. GitHub Contribution Guide](#l-github-contribution-guide)
-- [M. Security & Privacy](#m-security--privacy)
-- [N. Roadmap](#n-roadmap)
-- [O. License](#o-license)
+- [Project Title & Introduction](#project-title--introduction)
+- [Technology Stack](#technology-stack)
+- [Project Structure](#project-structure)
+- [Installation](#installation)
+- [Environment Variables](#environment-variables)
+- [Running the Application](#running-the-application)
+- [Available Scripts](#available-scripts)
+- [API Documentation Overview](#api-documentation-overview)
+- [Troubleshooting Guide](#troubleshooting-guide)
+- [GitHub Contribution Guide](#github-contribution-guide)
+- [Security & Privacy](#security--privacy)
+- [Roadmap](#roadmap)
+- [License](#license)
 
 ---
 
-## A. Project Title & Introduction
+## Project Title & Introduction
 
 ### The Problem
 Most people wear only 20% of the clothing in their wardrobe, suffering from "closet paralysis" — spending valuable time every morning wondering what to wear. Traditional fashion apps either require tedious manual logging, push aggressive fast-fashion advertising, or offer generic advice that ignores what you actually own, your body type, and local weather conditions.
@@ -48,27 +46,7 @@ Most people wear only 20% of the clothing in their wardrobe, suffering from "clo
 
 ---
 
-## B. Features & Implementation Status
-
-To ensure transparency, every core feature is categorized by its actual verification status in this codebase:
-
-| Feature | Status | Description |
-|---------|:------:|-------------|
-| **1. Digital Wardrobe** | ✅ Fully Working | Upload garments with photos, assign categories (`tops`, `bottoms`, `shoes`, etc.), seasons, colors, and search/filter seamlessly. |
-| **2. AI Outfit Recommendations** | ✅ Fully Working | Generates cohesive outfit pairings from your digitized closet based on current weather and style profile, backed by rule-based fallbacks. |
-| **3. AI Fashion Critic** | ✅ Fully Working | Upload an outfit photo or select wardrobe pieces to receive numeric ratings (0-10), strengths, and actionable improvement tips from Gemini. |
-| **4. Color Combination Analyzer** | ✅ Fully Working | Interactive color wheel tool evaluating primary and secondary colors against monochromatic, complementary, and triadic harmony rules. |
-| **5. Occasion-Based Styling** | ✅ Fully Working | Tailored recommendations for specific events: Casual, Business Formal, Date Night, Weddings, Cocktail, and Work from Home. |
-| **6. Budget Shopping Assistant** | ✅ Fully Working | Identifies wardrobe gaps, creates custom shopping lists, tracks item costs, and generates smart budget-allocation plans. |
-| **7. AI Fashion Chatbot** | ✅ Fully Working | Conversational stylist with memory of your wardrobe contents and style profile to answer ad-hoc questions ("What shoes go with dark corduroys?"). |
-| **8. Personal Style Profile & Onboarding** | ✅ Fully Working | 5-step wizard capturing body measurements, face shape (oval, round, square, heart), sizing, preferred aesthetics, and color exclusions. |
-| **9. Weather-Aware Dashboard** | ✅ Fully Working | Real-time weather widget powered by Open-Meteo that automatically syncs temperature/conditions with daily outfit suggestions. |
-| **10. Smart Clothes Finder** | ⚠️ Partial (Dev Catalog) | Fully working catalog browser with filtering and favorites using 24 seeded development products. Real-time affiliate search API integration is planned. |
-| **11. Virtual Try-On** | ⚠️ Partial (Fit Analysis) | Photo upload and Gemini AI Fit & Silhouette Assessment are fully operational. Full 3D neural garment-warping requires external commercial API credentials. |
-
----
-
-## C. Technology Stack
+## Technology Stack
 
 ### Frontend Client
 - **Core:** [React 19](https://react.dev/) + [Vite 8](https://vite.dev/) (lightning-fast HMR)
@@ -91,7 +69,7 @@ To ensure transparency, every core feature is categorized by its actual verifica
 
 ---
 
-## D. Project Structure
+## Project Structure
 
 ```
 Digi_Closet/
@@ -143,20 +121,7 @@ Digi_Closet/
 
 ---
 
-## E. Prerequisites
-
-Before installing DigiCloset, make sure you have:
-
-1. **Node.js:** `v18.0.0` or higher installed ([Download Node.js](https://nodejs.org/)).
-2. **npm:** `v9.0.0` or higher (bundled with Node.js).
-3. **MongoDB:** Local installation ([Download MongoDB](https://www.mongodb.com/try/download/community)) OR a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster URI.
-4. **Git:** Installed on your machine ([Download Git](https://git-scm.com/)).
-5. *(Optional)* **Google Gemini API Key:** For live AI features ([Get a free key here](https://aistudio.google.com/)). If omitted, the app runs smoothly with rule-based offline fallbacks.
-6. *(Optional)* **Firebase Account / CLI:** If you wish to use production Firebase instead of the built-in local Auth emulator.
-
----
-
-## F. Installation
+## Installation
 
 ### 1. Clone the Repository
 ```bash
@@ -180,7 +145,7 @@ cd ..
 
 ---
 
-## G. Environment Variables
+## Environment Variables
 
 DigiCloset uses separate environment files for the backend and frontend.
 
@@ -217,7 +182,7 @@ cp frontend/.env.example frontend/.env
 
 ---
 
-## H. Running the Application
+## Running the Application
 
 Follow these steps across separate terminal tabs to run DigiCloset locally:
 
@@ -258,7 +223,7 @@ Now open **`http://localhost:5173`** in your browser to begin exploring DigiClos
 
 ---
 
-## I. Available Scripts
+## Available Scripts
 
 ### Backend Scripts (`backend/package.json`)
 | Command | Action |
@@ -279,7 +244,7 @@ Now open **`http://localhost:5173`** in your browser to begin exploring DigiClos
 
 ---
 
-## J. API Documentation Overview
+## API Documentation Overview
 
 The DigiCloset backend exposes 12 domain route modules. Detailed request and response examples can be found in [`docs/api-reference.md`](docs/api-reference.md).
 
@@ -300,7 +265,7 @@ The DigiCloset backend exposes 12 domain route modules. Detailed request and res
 
 ---
 
-## K. Troubleshooting Guide
+## Troubleshooting Guide
 
 ### 1. "MongoNetworkError: connect ECONNREFUSED 127.0.0.1:27017"
 - **Cause:** MongoDB is not running on your machine.
@@ -324,7 +289,7 @@ The DigiCloset backend exposes 12 domain route modules. Detailed request and res
 
 ---
 
-## L. GitHub Contribution Guide
+## GitHub Contribution Guide
 
 Contributions are welcome! Please follow these standards:
 
@@ -347,7 +312,7 @@ Contributions are welcome! Please follow these standards:
 
 ---
 
-## M. Security & Privacy
+## Security & Privacy
 
 - **Never Commit Secrets:** Real API keys, database credentials, and service account keys are excluded via `.gitignore`. Always use `.env.example` as a template.
 - **Bearer Token Verification:** All private API endpoints verify the caller's Firebase ID token via the Firebase Admin SDK on every request.
@@ -356,7 +321,7 @@ Contributions are welcome! Please follow these standards:
 
 ---
 
-## N. Roadmap
+## Roadmap
 
 ### Phase 1: Core Foundation (Completed ✅)
 - [x] Full Digital Wardrobe management with multi-criteria filtering
@@ -381,7 +346,7 @@ Contributions are welcome! Please follow these standards:
 
 ---
 
-## O. License
+## License
 
 This project is licensed under the [ISC License](https://opensource.org/licenses/ISC) — see the package configuration files for full details.
 
