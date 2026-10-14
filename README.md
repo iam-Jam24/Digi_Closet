@@ -283,31 +283,6 @@ Contributions are welcome! Please follow these standards:
 
 ---
 
-## Roadmap
-
-### Phase 1: Core Foundation (Completed ✅)
-- [x] Full Digital Wardrobe management with multi-criteria filtering
-- [x] Multimodal AI Outfit Recommendations with weather integration
-- [x] AI Fashion Critic with numerical scores and actionable styling advice
-- [x] Color Harmony Analyzer with interactive color wheel suggestions
-- [x] Occasion Styling generator for 6 core social scenarios
-- [x] Budget Shopping Assistant with saved shopping lists
-- [x] AI Fashion Chatbot with wardrobe context awareness
-- [x] 5-step Style Profile Onboarding & user measurement tracking
-- [x] GDPR data export and account self-deletion
-
-### Phase 2: Enhanced Integrations (In Progress 🔄)
-- [ ] Connect live affiliate shopping APIs (ASOS, Amazon, Uniqlo) to replace dev catalog
-- [ ] Full 3D neural garment warping for Virtual Try-On via external diffusion model provider
-- [ ] Automated background removal for uploaded wardrobe photos using Canvas / WASM
-
-### Phase 3: Mobile & Social (Planned 🗺️)
-- [ ] React Native / Expo mobile app companion
-- [ ] Closet sharing with friends and collaborative outfit curation
-- [ ] Laundry and dry-cleaning wear-frequency tracker
-
----
-
 ## License
 
 This project is licensed under the [ISC License](https://opensource.org/licenses/ISC) — see the package configuration files for full details.
