@@ -10,9 +10,24 @@ node_modules/
 dist/
 build/
 
-# Prisma
-server/prisma/*.db
-server/prisma/migrations/**/migration_lock.toml
+# MongoDB local data/logs
+**/.mongodb-data/
+**/.mongodb-logs/
+**/_tmp/
+**/*.wt
+**/*.lock
+**/diagnostic.data/
+
+
+# Firebase emulator
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+emulator-data/
+
+# Uploaded user images (dev local storage fallback)
+backend/uploads/
 
 # IDE
 .vscode/
