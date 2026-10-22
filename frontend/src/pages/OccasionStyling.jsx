@@ -19,7 +19,7 @@ export default function OccasionStyling() {
   const { items } = useWardrobe();
   const { saveOutfit } = useOutfits();
   const { showToast } = useToast();
-  const [form, setForm] = useState({ occasion: '', dressCode: '', style: '', city: '', budget: '' });
+  const [form, setForm] = useState({ occasion: '', dressCode: '', style: '', city: 'Bangalore', budget: '' });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -63,7 +63,7 @@ export default function OccasionStyling() {
         <form onSubmit={handleSubmit} className="form-grid form-grid--2">
           <Select label="Occasion" options={OCCASIONS} value={form.occasion} onChange={(e) => setForm({ ...form, occasion: e.target.value })} />
           <Select label="Dress Code" options={DRESS_CODES} value={form.dressCode} onChange={(e) => setForm({ ...form, dressCode: e.target.value })} />
-          <Input label="City (for weather)" placeholder="e.g. Delhi" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          <Input label="City (for weather)" placeholder="e.g. Bangalore" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
           <Input label="Budget if shopping needed (₹)" type="number" placeholder="Optional" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} />
           <div style={{ gridColumn: '1 / -1' }}>
             <Button type="submit" loading={loading}><CalendarHeart size={16} /> Get Styling Suggestions</Button>

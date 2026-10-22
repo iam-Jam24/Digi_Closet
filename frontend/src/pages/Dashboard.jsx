@@ -158,43 +158,34 @@ export default function Dashboard() {
   const { items, loading: wardrobeLoading } = useWardrobe();
   const { saved, loading: outfitsLoading } = useOutfits();
   const { weather, loading: weatherLoading, fetchWeather } = useWeather();
-  const [weatherCity, setWeatherCity] = useState('');
+  const [weatherCity, setWeatherCity] = useState('Bangalore');
 
-  // Auto-detect location on mount for weather
+  // Auto-detect location on mount for weather, defaulting to Bangalore
   useEffect(() => {
+    const defaultCity = 'Bangalore';
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const { latitude, longitude } = pos.coords;
           try {
-            const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=&latitude=${latitude}&longitude=${longitude}&count=1`);
-            const geo = await res.json();
-            const cityName = geo.results?.[0]?.name;
-            if (cityName) {
-              setWeatherCity(cityName);
-              fetchWeather(cityName);
-            } else {
-              // Fallback — try reverse with a generic query
-              fetchWeather('Delhi');
-              setWeatherCity('Delhi');
+            const data = await fetchWeather({ lat: latitude, lon: longitude });
+            if (data?.city) {
+              setWeatherCity(data.city);
             }
           } catch {
-            fetchWeather('Delhi');
-            setWeatherCity('Delhi');
+            fetchWeather(defaultCity);
           }
         },
         () => {
-          // Geolocation denied — use profile or default
-          fetchWeather('Delhi');
-          setWeatherCity('Delhi');
+          // Geolocation denied or unavailable — default to Bangalore
+          fetchWeather(defaultCity);
         },
         { timeout: 5000 }
       );
     } else {
-      fetchWeather('Delhi');
-      setWeatherCity('Delhi');
+      fetchWeather(defaultCity);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchWeather]);
 
   const firstName = (user?.name || firebaseUser?.displayName || '').split(' ')[0] || 'there';
   const recentItems = items.slice(0, 4);
@@ -220,7 +211,7 @@ export default function Dashboard() {
           weather={weather}
           loading={weatherLoading}
           city={weatherCity}
-          onRefresh={() => fetchWeather(weatherCity || 'Delhi')}
+          onRefresh={() => fetchWeather(weatherCity || 'Bangalore')}
         />
         <div className="grid grid--stats">
           {statCards.map(({ icon: Icon, label, value, color }) => (

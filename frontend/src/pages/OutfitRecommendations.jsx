@@ -19,7 +19,7 @@ export default function OutfitRecommendations() {
   const { items, loading: wardrobeLoading } = useWardrobe();
   const { recommend, recommending, saveOutfit, error } = useOutfits();
   const { showToast } = useToast();
-  const [form, setForm] = useState({ occasion: '', style: '', city: '', budget: '' });
+  const [form, setForm] = useState({ occasion: '', style: '', city: 'Bangalore', budget: '' });
   const [result, setResult] = useState(null);
   const [savedIds, setSavedIds] = useState([]);
 
@@ -71,7 +71,7 @@ export default function OutfitRecommendations() {
         <form onSubmit={handleGenerate} className="form-grid form-grid--2">
           <Select label="Occasion" options={OCCASIONS} value={form.occasion} onChange={(e) => setForm({ ...form, occasion: e.target.value })} />
           <Select label="Preferred Style" options={STYLES} value={form.style} onChange={(e) => setForm({ ...form, style: e.target.value })} />
-          <Input label="City (for weather)" placeholder="e.g. Mumbai" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          <Input label="City (for weather)" placeholder="e.g. Bangalore" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
           <Input label="Budget for missing items (₹)" type="number" placeholder="Optional" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} />
           <div style={{ gridColumn: '1 / -1' }}>
             <Button type="submit" loading={recommending} disabled={items.length === 0}>
