@@ -4,7 +4,7 @@ const { getWeather } = require('../controllers/weatherController');
 
 const router = express.Router();
 
-router.use(authenticate);
+// Weather route is public (proxies Open-Meteo)
 router.get('/', getWeather);
 
 module.exports = router;
