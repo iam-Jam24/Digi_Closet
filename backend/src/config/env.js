@@ -12,6 +12,9 @@ const env = {
   FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY || '',
   FIREBASE_AUTH_EMULATOR_HOST: process.env.FIREBASE_AUTH_EMULATOR_HOST || '',
   FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET || '',
+  // cloudinary://API_KEY:API_SECRET@CLOUD_NAME (Cloudinary dashboard > API Keys).
+  // When set, image uploads go to Cloudinary instead of Firebase Storage.
+  CLOUDINARY_URL: process.env.CLOUDINARY_URL || '',
 
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
   GEMINI_CONFIGURED: Boolean(process.env.GEMINI_API_KEY),

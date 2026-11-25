@@ -11,6 +11,10 @@ if (env.FIREBASE_AUTH_EMULATOR_HOST) {
   process.env.FIREBASE_AUTH_EMULATOR_HOST = env.FIREBASE_AUTH_EMULATOR_HOST;
 }
 
+// Hosting dashboards make the key easy to paste wrongly: accept it with or
+// without surrounding quotes, and with literal "\n" or real line breaks.
+const normalizePrivateKey = (key) => key.trim().replace(/^(['"])([\s\S]*)\1$/, '$2').replace(/\\n/g, '\n');
+
 let app;
 
 if (!getApps().length) {
@@ -20,7 +24,7 @@ if (!getApps().length) {
       credential: cert({
         projectId: env.FIREBASE_PROJECT_ID,
         clientEmail: env.FIREBASE_CLIENT_EMAIL,
-        privateKey: env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        privateKey: normalizePrivateKey(env.FIREBASE_PRIVATE_KEY),
       }),
       storageBucket: env.FIREBASE_STORAGE_BUCKET || undefined,
     });

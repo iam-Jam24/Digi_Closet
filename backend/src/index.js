@@ -27,7 +27,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Local dev image storage (served only when FIREBASE_STORAGE_BUCKET is unset)
+// Local dev image storage (used only when no cloud storage is configured)
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // API Routes
