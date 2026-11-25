@@ -158,10 +158,10 @@
 }
 @media (min-width: 900px) {
   .studio-greeting { flex-direction: row; align-items: flex-end; justify-content: space-between; }
-  .studio-hero { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); align-items: end; }
+  .studio-hero { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: var(--space-8); align-items: center; }
   .studio-hero__image { aspect-ratio: auto; height: 36rem; max-height: none; }
-  /* The text panel sits over the photo's lower edge. */
-  .studio-hero__text { margin-left: -6rem; margin-bottom: var(--space-20); padding: var(--space-10); position: relative; }
+  /* The text panel sits beside the photo, so it never covers the subject. */
+  .studio-hero__text { padding: var(--space-10); }
   /* One large tile; beside it two tiles over three (a 12-column grid). */
   .mosaic { grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(2, 17rem); }
   .mosaic__tile { aspect-ratio: auto; }

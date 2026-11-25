@@ -110,7 +110,7 @@ export default function OutfitPlanner() {
       <PageHeader
         eyebrow="Planning"
         title="A week, well dressed."
-        image="/images/editorial/cream-knit-studio.jpg"
+        image="/images/editorial/clothing-rack-warm.jpg"
         variant="stacked"
         subtitle="Give each day a look from your saved outfits. Mark days as worn to see what you really reach for in Wardrobe Insights."
       />
