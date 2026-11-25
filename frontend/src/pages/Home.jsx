@@ -205,7 +205,7 @@ export default function Home() {
           <p>Your wardrobe is full of possibilities. Discover new combinations, refine your personal style, and make every outfit count.</p>
           <Link to="/register" className="link-arrow">Begin your wardrobe <ArrowRight size={14} /></Link>
         </div>
-        <div className="intro__image img-zoom reveal"><img src={img('hero-studio-shirt')} alt="Woman in a white shirt against a warm studio backdrop" loading="lazy" /></div>
+        <div className="intro__image img-zoom reveal"><img src={img('sage-jacket-studio')} alt="Man in a sage zip jacket against a warm wooden backdrop" loading="lazy" /></div>
         <div className="intro__detail img-zoom reveal"><img src={img('accessories-flatlay')} alt="" loading="lazy" /></div>
       </section>
 

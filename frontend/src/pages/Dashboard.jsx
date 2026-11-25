@@ -200,7 +200,7 @@ export default function Dashboard() {
 
       {/* Editorial hero */}
       <section className="studio-hero">
-        <div className="studio-hero__image img-zoom"><img src={img('white-blazer-studio')} alt="Woman in a cream tailored blazer with a red rose" /></div>
+        <div className="studio-hero__image img-zoom"><img src={img('black-white-tees-duo')} alt="Two people in black and white oversized T-shirts against a white wall" /></div>
         <div className="studio-hero__text">
           <span className="eyebrow">Made for your everyday</span>
           <h2 className="studio-hero__title">Your wardrobe.<br /><em>Your expression.</em></h2>
