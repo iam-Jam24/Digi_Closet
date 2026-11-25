@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Shirt, X } from 'lucide-react';
+import { Sparkles, Shirt, X, AlertCircle } from 'lucide-react';
 import useWardrobe from '../hooks/useWardrobe';
 import useLooks from '../hooks/useLooks';
 import { getErrorMessage } from '../services/api';
@@ -21,7 +21,9 @@ const MAX_ITEMS = 5;
 export default function TryOn() {
   const navigate = useNavigate();
   const { items: wardrobe, loading: wardrobeLoading } = useWardrobe();
-  const { savedLooks, loading, error: listError, fetchLooks, generateTryOn, updateLook, deleteLook } = useLooks('try-on');
+  const {
+    savedLooks, loading, error: listError, fetchLooks, capabilities, fetchCapabilities, generateTryOn, updateLook, deleteLook,
+  } = useLooks('try-on');
 
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
@@ -33,6 +35,9 @@ export default function TryOn() {
   const [look, setLook] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  // True while capabilities are re-checked after an "unavailable" response.
+  const [rechecking, setRechecking] = useState(false);
+  const unavailable = capabilities?.tryOn?.available === false;
 
   // Only items with a photo can be tried on.
   const withPhotos = sortBySlot(wardrobe.filter((item) => item.imageUrl));
@@ -69,6 +74,13 @@ export default function TryOn() {
       if (!sourceLookId || sourceLookId === photoLookId) setPhotoLookId(result._id);
     } catch (err) {
       setError(getErrorMessage(err, 'Could not generate your look. Please try again.'));
+      // 503: no provider can serve this right now, so re-check instead of
+      // letting the same call fail again. 429 stays "wait and retry".
+      if (err.response?.status === 503) {
+        setRechecking(true);
+        await fetchCapabilities();
+        setRechecking(false);
+      }
     } finally {
       setGenerating(false);
     }
@@ -96,6 +108,13 @@ export default function TryOn() {
         image="/images/editorial/leather-jacket-model.jpg"
         variant="overlay"
       />
+
+      {unavailable && (
+        <div className="alert alert--info looks-banner" role="status">
+          <AlertCircle size={18} />
+          <span>{capabilities.tryOn.reason} You can still browse your saved looks.</span>
+        </div>
+      )}
 
       <div className="looks-layout section">
         <Card className="looks-panel">
@@ -165,7 +184,7 @@ export default function TryOn() {
             size="lg"
             onClick={() => generate(selectedIds)}
             loading={generating}
-            disabled={!(photoFile || photoLookId) || selectedIds.length === 0}
+            disabled={unavailable || rechecking || !(photoFile || photoLookId) || selectedIds.length === 0}
           >
             <Sparkles size={16} /> Generate my look
           </Button>
@@ -177,6 +196,7 @@ export default function TryOn() {
               look={look}
               generating={generating}
               onRegenerate={() => generate(look.clothingItems.map((item) => item._id), look._id)}
+              regenerateDisabled={unavailable || rechecking}
               onUpdate={handleUpdate}
             />
           ) : (

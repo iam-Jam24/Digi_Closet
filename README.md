@@ -185,9 +185,9 @@ More detail is in [`backend/README.md`](backend/README.md), [`frontend/README.md
 | Database connection refused | MongoDB isn't running. Start it with `npm run db:start` in `backend/`. |
 | Sign-in fails with a network error | The Auth Emulator isn't running. Start it with `npm run auth:start` in `backend/`. |
 | Pages fail to load data | The API server isn't running. Start it with `npm run dev` in `backend/`. |
-| AI features say they aren't configured | Add your Gemini API key to `backend/.env`, then restart the API server. |
+| AI features say they aren't available | Check the API server log for the reason. Usually `GEMINI_API_KEY` is missing or invalid in `backend/.env`; fix it and restart the API server. |
 | AI features say "busy" or "overloaded" | The AI service is under high demand. Wait a moment and try again. |
-| Try-On or Makeover says there's no quota | Image generation needs billing enabled on your Google AI account. |
+| Try-On or Makeover says image generation isn't available | On a free Gemini key, images come from free Hugging Face Spaces (`IMAGE_GENERATION_PROVIDERS=gemini,huggingface`). The banner appears when their daily GPU quota is used up or the Spaces are down; the API log says which. Add a free `HF_TOKEN` to `backend/.env` for a larger quota, wait and try later, or enable billing on your Gemini key. |
 | Clothes Finder shows no product listings | Live listings need an optional product search key (see `backend/.env.example`). |
 | Phone sign-in code doesn't arrive locally | No real SMS is sent in local development. The code appears on the sign-in screen and in the emulator terminal. |
 

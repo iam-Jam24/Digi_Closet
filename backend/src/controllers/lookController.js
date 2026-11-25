@@ -6,7 +6,9 @@ const imageGeneration = require('../services/imageGenerationService');
 const stylistService = require('../services/stylistService');
 
 const MAX_TRY_ON_ITEMS = 5;
-// Gemini rejects inline requests over ~20MB, and base64 adds a third.
+// Gemini rejects inline requests over ~20MB, and base64 adds a third. The
+// Hugging Face Spaces take files one at a time (each already capped at 5MB by
+// the upload middleware) and resize them themselves, so this is the binding limit.
 const MAX_REFERENCE_BYTES = 14 * 1024 * 1024;
 // Unsaved results are kept this long so a page reload doesn't lose them.
 const UNSAVED_LOOK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -20,7 +22,11 @@ const badRequest = (res, message) => res.status(400).json({ success: false, mess
  * again") the stored photo of one of the caller's earlier looks.
  */
 async function loadSourcePhoto(req) {
-  if (req.file) return { buffer: req.file.buffer, mimeType: req.file.mimetype, stored: null };
+  if (req.file) {
+    // Checked before generation, since the photo is only stored afterwards.
+    imageService.assertValidImage(req.file.buffer, req.file.mimetype);
+    return { buffer: req.file.buffer, mimeType: req.file.mimetype, stored: null };
+  }
 
   const { sourceLookId } = req.body;
   if (!mongoose.isValidObjectId(sourceLookId)) return null;
@@ -35,10 +41,19 @@ async function loadSourcePhoto(req) {
 }
 
 /**
- * Stores the person photo (if new), generates the image and saves the look.
- * Anything stored along the way is removed again if a later step fails.
+ * Generates the image first, then stores the person photo (if new) and the
+ * result and saves the look. Nothing touches storage when generation fails;
+ * anything stored is removed again if a later step fails.
  */
-async function generateLook(req, { feature, source, prompt, references = [], clothingItems = [], style = null }) {
+async function generateLook(req, { feature, source, prompt, references = [], items = [], style = null }) {
+  const generated = await imageGeneration.generateImage({
+    feature,
+    prompt,
+    images: [{ buffer: source.buffer, mimeType: source.mimeType }, ...references],
+    items,
+    style,
+  });
+
   const uid = req.firebaseUser.uid;
   const created = [];
   try {
@@ -47,11 +62,6 @@ async function generateLook(req, { feature, source, prompt, references = [], clo
       sourceImage = await imageService.storeImage(source.buffer, { uid, folder: 'look-sources', mimetype: source.mimeType });
       created.push(sourceImage.path);
     }
-
-    const generated = await imageGeneration.generateImage({
-      prompt,
-      images: [{ buffer: source.buffer, mimeType: source.mimeType }, ...references],
-    });
     const result = await imageService.storeImage(generated.buffer, { uid, folder: 'looks', mimetype: generated.mimeType });
     created.push(result.path);
 
@@ -60,8 +70,10 @@ async function generateLook(req, { feature, source, prompt, references = [], clo
       feature,
       sourceImageUrl: sourceImage.url,
       sourceImagePath: sourceImage.path,
-      clothingItems,
+      clothingItems: items.map((item) => item._id),
       style,
+      provider: generated.provider,
+      providerLabel: generated.providerLabel,
       resultUrl: result.url,
       resultPath: result.path,
     });
@@ -109,6 +121,12 @@ const listLooks = async (req, res, next) => {
   }
 };
 
+// GET /api/looks/capabilities — whether try-on / makeover images can be
+// generated right now and by which provider. Makes no generation call.
+const getCapabilities = (req, res) => {
+  res.json({ success: true, data: imageGeneration.getCapabilities() });
+};
+
 // POST /api/looks/try-on — multipart `photo` + `data` JSON { itemIds },
 // or JSON { itemIds, sourceLookId } to reuse the photo of an earlier look.
 const createTryOn = async (req, res, next) => {
@@ -140,7 +158,7 @@ const createTryOn = async (req, res, next) => {
       source,
       prompt: stylistService.tryOnPrompt(items),
       references,
-      clothingItems: items.map((item) => item._id),
+      items,
     });
     res.status(201).json({ success: true, message: 'Your look is ready.', data: { look } });
   } catch (error) {
@@ -222,4 +240,4 @@ const deleteLook = async (req, res, next) => {
   }
 };
 
-module.exports = { listLooks, createTryOn, analyzeMakeover, createMakeover, updateLook, deleteLook };
+module.exports = { getCapabilities, listLooks, createTryOn, analyzeMakeover, createMakeover, updateLook, deleteLook };

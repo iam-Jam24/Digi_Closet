@@ -66,6 +66,12 @@ GEMINI_API_KEY=
 GEMINI_MODEL=gemini-3.5-flash-lite
 GEMINI_FALLBACK_MODEL=gemini-3.1-flash-lite
 
+# Try-On / Makeover images: Gemini (paid tier) first, then free Hugging Face
+# Spaces. Works on a free Gemini key; HF_TOKEN (free) is optional and raises
+# the daily GPU quota. See backend/.env.example for all options.
+IMAGE_GENERATION_PROVIDERS=gemini,huggingface
+HF_TOKEN=
+
 # Live product listings for Clothes Finder / Budget Planner (optional, SerpApi)
 PRODUCT_SEARCH_PROVIDER=serpapi
 PRODUCT_SEARCH_API_KEY=

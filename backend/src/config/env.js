@@ -18,13 +18,26 @@ const env = {
   GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
   GEMINI_FALLBACK_MODEL: process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite',
   // Image editing models used by Virtual Try-On and Style Makeover. These are
-  // paid-tier only: the Gemini free tier allows zero image generations.
+  // paid-tier only: the Gemini free tier allows zero image generations, so on
+  // a free key the next provider in IMAGE_GENERATION_PROVIDERS is used.
   GEMINI_IMAGE_MODEL: process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image',
   GEMINI_IMAGE_FALLBACK_MODEL: process.env.GEMINI_IMAGE_FALLBACK_MODEL || 'gemini-2.5-flash-image',
 
-  // Which provider generates try-on / makeover images. Only "gemini" today;
-  // see services/imageGenerationService.js to add another.
-  IMAGE_GENERATION_PROVIDER: process.env.IMAGE_GENERATION_PROVIDER || 'gemini',
+  // How long a model or provider that reported zero quota is skipped.
+  AI_QUOTA_COOLDOWN_MS: parseInt(process.env.AI_QUOTA_COOLDOWN_MS, 10) || 60 * 60 * 1000,
+
+  // Image providers tried in order for try-on / makeover images; see
+  // services/imageGenerationService.js. The older single-value
+  // IMAGE_GENERATION_PROVIDER is still honoured when the list is unset.
+  IMAGE_GENERATION_PROVIDERS: (process.env.IMAGE_GENERATION_PROVIDERS || process.env.IMAGE_GENERATION_PROVIDER || 'gemini,huggingface')
+    .split(',').map((name) => name.trim().toLowerCase()).filter(Boolean),
+
+  // Free image generation on public Hugging Face Spaces. HF_TOKEN is optional;
+  // a (free) token gives a larger ZeroGPU quota than anonymous use.
+  HF_TOKEN: process.env.HF_TOKEN || '',
+  HF_TRYON_SPACE: process.env.HF_TRYON_SPACE || 'yisol/IDM-VTON',
+  HF_EDIT_SPACE: process.env.HF_EDIT_SPACE || 'black-forest-labs/FLUX.1-Kontext-Dev',
+  HF_TIMEOUT_MS: parseInt(process.env.HF_TIMEOUT_MS, 10) || 180000,
 
   WEATHER_PROVIDER: process.env.WEATHER_PROVIDER || 'open-meteo',
 

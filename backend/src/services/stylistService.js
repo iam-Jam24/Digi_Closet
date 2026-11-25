@@ -221,7 +221,7 @@ ${JSON.stringify(wardrobeItems.map(describeItem))}`,
   }
 
   if (!outfits.length) {
-    throw new AIError('Gemini could not build a valid, new outfit from your wardrobe. Try again or add more items.', 502);
+    throw new AIError('The AI stylist could not build a valid, new outfit from your wardrobe. Try again or add more items.', 502);
   }
   return outfits;
 }
@@ -392,7 +392,7 @@ If no face is clearly visible (too dark, blurry, covered, or not a person), set 
   };
 
   if (palette.recommendedColors.length < 3) {
-    throw new AIError('Gemini returned an incomplete palette. Please try again.', 502);
+    throw new AIError('The AI stylist returned an incomplete palette. Please try again.', 502);
   }
   return palette;
 }
@@ -543,6 +543,26 @@ ${PRESERVE_PERSON}
 Do not add clothing or accessories that were not provided.`;
 }
 
+// Plain-text description of a wardrobe item, for image models that take the
+// garment as words (or as a caption next to its photo).
+function garmentDescription(item) {
+  return [item.colors?.join('/'), item.pattern, item.name, item.type && item.type !== item.name ? `(${item.type})` : '']
+    .filter(Boolean).join(' ').slice(0, 200);
+}
+
+// Variant of tryOnPrompt for editors that only accept the person photo: the
+// garments are described in words instead of shown, so the result matches
+// them less exactly than a model that sees the garment photos.
+function tryOnTextPrompt(items) {
+  return `Edit this photo of a person so they are wearing:
+${items.map((item) => `- ${garmentDescription(item)} (${item.category})`).join('\n')}
+
+Each item replaces whatever they currently wear in the same place on the body. Keep any clothing that is not being replaced.
+Make the fit realistic for this body: natural drape, folds and creases, with shadows and highlights that match the photo's lighting.
+${PRESERVE_PERSON}
+Do not add clothing or accessories that were not listed.`;
+}
+
 function makeoverPrompt(style) {
   const list = (label, values) => (values.length ? `${label}:\n${values.map((v) => `- ${v}`).join('\n')}\n` : '');
   return `This is a photo of a person. Restyle their outfit into the "${style.name}" look${style.styleCategory ? ` (${style.styleCategory})` : ''}.
@@ -614,7 +634,7 @@ ${wardrobe ? `Pieces they already own (mention one by name when it fits an optio
   });
 
   if (!Array.isArray(result.options) || result.options.length < 3) {
-    throw new AIError('Gemini did not return three style options. Please try again.', 502);
+    throw new AIError('The AI stylist did not return three style options. Please try again.', 502);
   }
   return { assessment: result.assessment, options: result.options.slice(0, 3).map(sanitizeStyleOption) };
 }
@@ -700,6 +720,8 @@ module.exports = {
   analyzeMakeover,
   sanitizeStyleOption,
   tryOnPrompt,
+  tryOnTextPrompt,
+  garmentDescription,
   makeoverPrompt,
   chat,
   buildOutfit,

@@ -26,6 +26,10 @@ const lookSchema = new mongoose.Schema(
     sourceImagePath: { type: String, required: true },
     clothingItems: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ClothingItem' }],
     style: { type: styleOptionSchema, default: null },
+    // Which image provider made the result, e.g. "gemini" or
+    // "huggingface:black-forest-labs/FLUX.1-Kontext-Dev", plus a display name.
+    provider: { type: String, default: null },
+    providerLabel: { type: String, default: null },
     resultUrl: { type: String, required: true },
     resultPath: { type: String, required: true },
     saved: { type: Boolean, default: false },

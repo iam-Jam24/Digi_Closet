@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Wand2, Plus, Minus } from 'lucide-react';
+import { Sparkles, Wand2, Plus, Minus, AlertCircle } from 'lucide-react';
 import useLooks from '../hooks/useLooks';
 import { getErrorMessage } from '../services/api';
 import PageHeader from '../components/PageHeader';
@@ -24,7 +24,7 @@ function SuggestionList({ title, items }) {
   );
 }
 
-function StyleOptionCard({ option, onGenerate, generating, disabled }) {
+function StyleOptionCard({ option, onGenerate, generating, disabled, canGenerate }) {
   const pieces = [
     ...option.accessories.map((name, i) => ({ name, image: itemImage(option.accessoryTypes?.[i], name) })),
     ...option.footwear.map((name, i) => ({ name, image: itemImage(option.footwearTypes?.[i], name, 'ankle-boots'), label: 'Footwear' })),
@@ -74,15 +74,22 @@ function StyleOptionCard({ option, onGenerate, generating, disabled }) {
         </div>
       )}
 
-      <Button variant="outline" fullWidth onClick={onGenerate} loading={generating} disabled={disabled}>
-        <Wand2 size={16} /> Generate this look
-      </Button>
+      {/* Without image generation the card still stands on its own as advice. */}
+      {canGenerate ? (
+        <Button variant="outline" fullWidth onClick={onGenerate} loading={generating} disabled={disabled}>
+          <Wand2 size={16} /> Generate this look
+        </Button>
+      ) : (
+        <p className="makeover-option__note">Photo previews are unavailable right now.</p>
+      )}
     </Card>
   );
 }
 
 export default function StyleMakeover() {
-  const { savedLooks, loading, error: listError, fetchLooks, analyzeMakeover, generateMakeover, updateLook, deleteLook } = useLooks('makeover');
+  const {
+    savedLooks, loading, error: listError, fetchLooks, capabilities, fetchCapabilities, analyzeMakeover, generateMakeover, updateLook, deleteLook,
+  } = useLooks('makeover');
 
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
@@ -94,6 +101,9 @@ export default function StyleMakeover() {
   const [look, setLook] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [rechecking, setRechecking] = useState(false);
+  // The analysis is text-only and works regardless; only previews need images.
+  const unavailable = capabilities?.makeover?.available === false;
 
   const handlePhoto = (file) => {
     setPhotoFile(file);
@@ -126,6 +136,13 @@ export default function StyleMakeover() {
       if (!sourceLookId || sourceLookId === photoLookId) setPhotoLookId(result._id);
     } catch (err) {
       setError(getErrorMessage(err, 'Could not generate this look. Please try again.'));
+      // 503: no provider can make previews right now, so re-check instead of
+      // letting the same call fail again. 429 stays "wait and retry".
+      if (err.response?.status === 503) {
+        setRechecking(true);
+        await fetchCapabilities();
+        setRechecking(false);
+      }
     } finally {
       setGenerating(false);
     }
@@ -151,6 +168,13 @@ export default function StyleMakeover() {
         image="/images/editorial/white-shirt-man.jpg"
         variant="reverse"
       />
+
+      {unavailable && (
+        <div className="alert alert--info looks-banner" role="status">
+          <AlertCircle size={18} />
+          <span>Photo previews of each look are unavailable right now. You can still get your stylist&apos;s take and three style ideas.</span>
+        </div>
+      )}
 
       <div className="looks-layout section">
         <Card className="looks-panel">
@@ -198,7 +222,8 @@ export default function StyleMakeover() {
                 option={option}
                 onGenerate={() => generate(option)}
                 generating={generating && activeStyle === option.name}
-                disabled={generating}
+                disabled={generating || rechecking}
+                canGenerate={!unavailable}
               />
             ))}
           </div>
@@ -211,6 +236,7 @@ export default function StyleMakeover() {
             look={look}
             generating={generating}
             onRegenerate={() => generate(look.style, look._id)}
+            regenerateDisabled={unavailable || rechecking}
             onUpdate={handleUpdate}
           />
         </section>

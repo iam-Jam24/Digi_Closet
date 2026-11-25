@@ -2,6 +2,8 @@ const env = require('../config/env');
 
 const errorHandler = (err, req, res, _next) => {
   console.error('Error:', err.message);
+  // Developer-only explanation from AIError (env vars, billing, provider output).
+  if (err.detail) console.error('  Detail:', err.detail);
 
   if (env.NODE_ENV === 'development' && !err.statusCode) {
     console.error(err.stack);

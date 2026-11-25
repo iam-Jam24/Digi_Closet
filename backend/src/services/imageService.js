@@ -44,12 +44,17 @@ class ImageService {
    * (e.g. 'wardrobe', 'tryon-user', 'tryon-garment', 'tryon-result').
    * @returns {Promise<{ url: string, path: string }>}
    */
-  async storeImage(buffer, { uid, folder, mimetype }) {
+  // Throws a 400 unless the bytes really are the claimed image type.
+  assertValidImage(buffer, mimetype) {
     if (!matchesSignature(buffer, mimetype)) {
       const err = new Error('The file is not a valid JPEG, PNG, or WebP image.');
       err.statusCode = 400;
       throw err;
     }
+  }
+
+  async storeImage(buffer, { uid, folder, mimetype }) {
+    this.assertValidImage(buffer, mimetype);
     const ext = mimetype === 'image/png' ? 'png' : mimetype === 'image/webp' ? 'webp' : 'jpg';
     const filename = `${crypto.randomUUID()}.${ext}`;
 
