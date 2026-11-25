@@ -19,6 +19,10 @@ export default function useLooks(feature) {
   const [savedLooks, setSavedLooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // { tryOn, makeover }: { available, provider, reason }. null until loaded
+  // (or if the check itself failed, in which case generation is still allowed
+  // and the server's own error is shown).
+  const [capabilities, setCapabilities] = useState(null);
 
   const fetchLooks = useCallback(async () => {
     try {
@@ -33,9 +37,21 @@ export default function useLooks(feature) {
     }
   }, [feature]);
 
+  const fetchCapabilities = useCallback(async () => {
+    try {
+      const { data } = await api.get('/looks/capabilities');
+      setCapabilities(data.data);
+      return data.data;
+    } catch {
+      setCapabilities(null);
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     fetchLooks();
-  }, [fetchLooks]);
+    fetchCapabilities();
+  }, [fetchLooks, fetchCapabilities]);
 
   const generateTryOn = useCallback(async ({ photoFile, itemIds, sourceLookId }) => {
     const { data } = await api.post('/looks/try-on', toRequestBody({ itemIds, sourceLookId }, photoFile));
@@ -70,5 +86,5 @@ export default function useLooks(feature) {
     setSavedLooks((prev) => prev.filter((l) => l._id !== id));
   }, []);
 
-  return { savedLooks, loading, error, fetchLooks, generateTryOn, analyzeMakeover, generateMakeover, updateLook, deleteLook };
+  return { savedLooks, loading, error, fetchLooks, capabilities, fetchCapabilities, generateTryOn, analyzeMakeover, generateMakeover, updateLook, deleteLook };
 }

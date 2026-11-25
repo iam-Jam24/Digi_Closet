@@ -1,13 +1,17 @@
 /**
  * Thin wrapper around the Google GenAI SDK.
  *
- * Every AI feature goes through generateJSON() or chat(). Failures are
- * surfaced as AIError with an HTTP status the error middleware can return;
- * nothing here ever substitutes canned or mock output.
+ * Every AI feature goes through generateJSON(), generateImage() or chat().
+ * Failures are surfaced as AIError with an HTTP status the error middleware
+ * can return; nothing here ever substitutes canned or mock output.
+ *
+ * AIError keeps two messages apart: `message` is safe to show users, while
+ * `detail` (logged server-side only) names env vars, billing and so on.
  */
 
 const { GoogleGenAI } = require('@google/genai');
 const env = require('../config/env');
+const availability = require('./aiAvailability');
 
 const RETRYABLE = new Set([429, 500, 503, 504]);
 const RETRY_DELAY_MS = 1000;
@@ -18,11 +22,23 @@ const TOTAL_BUDGET_MS = 60000;
 const IMAGE_REQUEST_TIMEOUT_MS = 120000;
 const IMAGE_TOTAL_BUDGET_MS = 150000;
 
+const UNAVAILABLE_MESSAGE = 'This AI feature isn\'t available right now. Please try again later.';
+
 class AIError extends Error {
-  constructor(message, statusCode = 502) {
+  /**
+   * @param {string} message user-facing text
+   * @param {number} statusCode HTTP status to return
+   * @param {{ detail?: string, unavailable?: boolean }} [options]
+   *   detail: developer-only explanation (logged, never sent to clients).
+   *   unavailable: the provider can't serve this at all right now (no quota,
+   *   not configured, down), so callers may try another provider.
+   */
+  constructor(message, statusCode = 502, { detail = '', unavailable = false } = {}) {
     super(message);
     this.name = 'AIError';
     this.statusCode = statusCode;
+    this.detail = detail;
+    this.unavailable = unavailable;
   }
 }
 
@@ -31,31 +47,67 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // The SDK aborts on timeout without an HTTP status; treat that like a 504.
 const statusOf = (err) => err.status || (err.name === 'AbortError' || /timed? ?out|aborted/i.test(err.message) ? 504 : undefined);
 
+/**
+ * A quota that retrying cannot fix: "limit: 0" (the model isn't on this
+ * key's tier at all) or an exhausted per-day quota.
+ */
+function isZeroQuota(err) {
+  if (statusOf(err) !== 429) return false;
+  const text = String(err.message || '');
+  return /limit:\s*0\b/.test(text)
+    || /"quotaValue"\s*:\s*"0"/.test(text)
+    || (/RESOURCE_EXHAUSTED/.test(text) && /PerDay/i.test(text));
+}
+
+// SDK messages can embed kilobytes of JSON; keep logs readable.
+const brief = (text) => (text.length > 300 ? `${text.slice(0, 300)}…` : text);
+
 function toAIError(err) {
   if (err instanceof AIError) return err;
   const status = statusOf(err);
-  if (/API key not valid|API_KEY_INVALID/i.test(err.message)) {
-    return new AIError('The Gemini API key was rejected. Check GEMINI_API_KEY in backend/.env.', 502);
+  const raw = brief(err.message || String(err));
+  if (/API key not valid|API_KEY_INVALID/i.test(raw) || status === 401 || status === 403) {
+    return new AIError(UNAVAILABLE_MESSAGE, 503, {
+      unavailable: true,
+      detail: `Gemini rejected the API key (${status || 'invalid key'}). Check GEMINI_API_KEY in backend/.env.`,
+    });
   }
-  if (status === 400) return new AIError('Gemini could not process this request. If you uploaded an image, try a clearer JPEG or PNG.', 422);
-  if (status === 401 || status === 403) return new AIError('The Gemini API key was rejected. Check GEMINI_API_KEY in backend/.env.', 502);
-  if (status === 404) return new AIError('The configured Gemini model is not available for this API key. Check GEMINI_MODEL in backend/.env.', 502);
-  if (status === 429 && /limit: 0\b/.test(err.message)) {
-    return new AIError(
-      'This Gemini API key has no quota for this model. Image generation is not available on the Gemini free tier: enable billing for the key\'s Google Cloud project.',
-      503
-    );
+  if (status === 400) {
+    return new AIError('We couldn\'t process this request. If you uploaded an image, try a clearer JPEG or PNG.', 422, { detail: raw });
   }
-  if (status === 429) return new AIError('Gemini rate limit reached. Please wait a minute and try again.', 429);
-  if (RETRYABLE.has(status)) return new AIError('Gemini is temporarily overloaded. Please try again in a moment.', 503);
-  return new AIError(`Gemini request failed: ${err.message}`, 502);
+  if (status === 404) {
+    return new AIError(UNAVAILABLE_MESSAGE, 503, {
+      unavailable: true,
+      detail: `Gemini model not available for this API key: ${raw}. Check GEMINI_MODEL / GEMINI_IMAGE_MODEL in backend/.env.`,
+    });
+  }
+  if (isZeroQuota(err)) {
+    const model = /model: ([\w.-]+)/.exec(err.message)?.[1];
+    return new AIError(UNAVAILABLE_MESSAGE, 503, {
+      unavailable: true,
+      detail: `This Gemini API key has no quota for ${model || 'this model'} (free tier, or daily quota used up). `
+        + 'Image models need billing enabled on the key\'s Google Cloud project.',
+    });
+  }
+  if (status === 429) {
+    return new AIError('The AI stylist is busy right now. Please wait a minute and try again.', 429, { detail: raw });
+  }
+  if (RETRYABLE.has(status)) {
+    return new AIError('The AI stylist is temporarily overloaded. Please try again in a moment.', 503, { unavailable: true, detail: raw });
+  }
+  return new AIError('The AI stylist couldn\'t complete this request. Please try again.', 502, { detail: `Gemini request failed: ${raw}` });
 }
 
+const breakerKey = (model) => `gemini:${model}`;
+
 class GeminiService {
-  constructor() {
-    this.isConfigured = env.GEMINI_CONFIGURED;
+  constructor({ client, isConfigured = env.GEMINI_CONFIGURED, retryDelayMs = RETRY_DELAY_MS } = {}) {
+    this.isConfigured = isConfigured;
+    this.retryDelayMs = retryDelayMs;
     this.models = [env.GEMINI_MODEL, env.GEMINI_FALLBACK_MODEL].filter(Boolean);
-    if (this.isConfigured) {
+    this.imageModels = [env.GEMINI_IMAGE_MODEL, env.GEMINI_IMAGE_FALLBACK_MODEL].filter(Boolean);
+    this.client = client;
+    if (!this.client && this.isConfigured) {
       this.client = new GoogleGenAI({
         apiKey: env.GEMINI_API_KEY,
         httpOptions: { timeout: REQUEST_TIMEOUT_MS },
@@ -67,10 +119,21 @@ class GeminiService {
     return { inlineData: { data: buffer.toString('base64'), mimeType } };
   }
 
+  // Models in `models` that the circuit breaker hasn't switched off.
+  availableModels(models = this.models) {
+    return this.isConfigured ? models.filter((model) => availability.isAvailable(breakerKey(model))) : [];
+  }
+
+  canGenerateImages() {
+    return this.availableModels(this.imageModels).length > 0;
+  }
+
   /**
    * Calls generateContent. On a transient error (overload, rate limit,
    * timeout) it alternates primary -> fallback -> primary, within an overall
-   * time budget. `hasOutput` decides whether a response actually contains
+   * time budget. A model with zero quota is switched off by the circuit
+   * breaker and never tried again in this request (or later ones, until the
+   * cooldown ends). `hasOutput` decides whether a response actually contains
    * what was asked for. Returns the raw SDK response.
    */
   async _generate({
@@ -82,19 +145,33 @@ class GeminiService {
     hasOutput = (response) => Boolean(response.text),
   }) {
     if (!this.isConfigured) {
-      throw new AIError('Gemini is not configured. Add GEMINI_API_KEY to backend/.env.', 503);
+      throw new AIError('AI features aren\'t available right now.', 503, {
+        unavailable: true,
+        detail: 'Gemini is not configured. Add GEMINI_API_KEY to backend/.env.',
+      });
     }
 
-    const [primary, fallback] = models;
+    const usable = this.availableModels(models);
+    if (!usable.length) {
+      throw new AIError(UNAVAILABLE_MESSAGE, 503, {
+        unavailable: true,
+        detail: `Skipped ${models.join(', ')}: marked as having no quota (circuit breaker).`,
+      });
+    }
+
+    const [primary, fallback] = usable;
     const attempts = fallback ? [primary, fallback, primary] : [primary, primary];
     const startedAt = Date.now();
     let lastError;
+    let tried = 0;
 
-    for (const [index, model] of attempts.entries()) {
-      if (index > 0) {
+    for (const model of attempts) {
+      if (!availability.isAvailable(breakerKey(model))) continue;
+      if (tried > 0) {
         if (Date.now() - startedAt > budgetMs) break;
-        await sleep(RETRY_DELAY_MS);
+        await sleep(this.retryDelayMs);
       }
+      tried += 1;
       try {
         const response = await this.client.models.generateContent({
           model,
@@ -103,16 +180,23 @@ class GeminiService {
         });
         if (!hasOutput(response)) {
           const reason = response.promptFeedback?.blockReason || response.candidates?.[0]?.finishReason;
-          throw new AIError(`Gemini returned no content${reason ? ` (${reason})` : ''}. Try a different image or wording.`, 422);
+          throw new AIError('The AI couldn\'t produce a result for this. Try a different image or wording.', 422, {
+            detail: `Gemini ${model} returned no content${reason ? ` (${reason})` : ''}.`,
+          });
         }
         return response;
       } catch (err) {
         lastError = err;
         const status = statusOf(err);
+        // A zero quota is a billing setting, not a transient limit: switch the
+        // model off and move on to the fallback without coming back.
+        if (isZeroQuota(err)) {
+          availability.markUnavailable(breakerKey(model), 'zero quota');
+          console.warn(`Gemini ${model} has no quota on this key; skipping it for ${Math.round(env.AI_QUOTA_COOLDOWN_MS / 60000)} min.`);
+          continue;
+        }
         if (err instanceof AIError || !RETRYABLE.has(status)) throw toAIError(err);
-        // A zero quota is a billing setting, not a transient limit; retrying won't help.
-        if (status === 429 && /limit: 0\b/.test(err.message) && !fallback) throw toAIError(err);
-        console.warn(`Gemini ${model} returned ${status} (attempt ${index + 1}/${attempts.length}).`);
+        console.warn(`Gemini ${model} returned ${status} (attempt ${tried}).`);
       }
     }
     throw toAIError(lastError);
@@ -137,7 +221,7 @@ class GeminiService {
     try {
       return JSON.parse(response.text);
     } catch {
-      throw new AIError('Gemini returned malformed JSON. Please try again.', 502);
+      throw new AIError('The AI stylist returned an unreadable answer. Please try again.', 502, { detail: 'Gemini returned malformed JSON.' });
     }
   }
 
@@ -150,7 +234,7 @@ class GeminiService {
     const response = await this._generate({
       contents: [{ role: 'user', parts: [...images, { text: prompt }] }],
       config: { responseModalities: ['IMAGE'], imageConfig: { imageSize: '1K' } },
-      models: [env.GEMINI_IMAGE_MODEL, env.GEMINI_IMAGE_FALLBACK_MODEL].filter(Boolean),
+      models: this.imageModels,
       timeoutMs: IMAGE_REQUEST_TIMEOUT_MS,
       budgetMs: IMAGE_TOTAL_BUDGET_MS,
       hasOutput: (res) => Boolean(findImage(res)),
@@ -172,3 +256,5 @@ class GeminiService {
 module.exports = new GeminiService();
 module.exports.GeminiService = GeminiService;
 module.exports.AIError = AIError;
+module.exports.toAIError = toAIError;
+module.exports.isZeroQuota = isZeroQuota;

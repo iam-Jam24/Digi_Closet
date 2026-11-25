@@ -12,7 +12,7 @@ import LoadingSpinner from './LoadingSpinner';
  * Favourite / Download. While `generating`, shows a waiting state instead
  * (over the previous result, if there is one).
  */
-export default function LookResult({ look, generating, onRegenerate, onUpdate }) {
+export default function LookResult({ look, generating, onRegenerate, onUpdate, regenerateDisabled = false }) {
   const { showToast } = useToast();
   const [updating, setUpdating] = useState(false);
 
@@ -58,8 +58,9 @@ export default function LookResult({ look, generating, onRegenerate, onUpdate })
       {look && (
         <div className="look-result__footer">
           <p className="look-result__title">{lookTitle(look)}</p>
+          {look.providerLabel && <p className="look-result__provider">Generated with {look.providerLabel}</p>}
           <div className="look-result__actions">
-            <Button variant="outline" size="sm" onClick={onRegenerate} disabled={generating}>
+            <Button variant="outline" size="sm" onClick={onRegenerate} disabled={generating || regenerateDisabled}>
               <RefreshCw size={14} /> Generate again
             </Button>
             <Button

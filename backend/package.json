@@ -9,13 +9,15 @@
     "db:start": "mkdir -p ~/.digi-closet/mongodb-data ~/.digi-closet/mongodb-logs && mongod --dbpath ~/.digi-closet/mongodb-data --logpath ~/.digi-closet/mongodb-logs/mongo.log --port 27017",
     "db:stop": "killall mongod 2>/dev/null || true",
     "auth:start": "node scripts/auth-emulator.js",
-    "auth:save": "firebase emulators:export ../emulator-data --project demo-digi-closet --force"
+    "auth:save": "firebase emulators:export ../emulator-data --project demo-digi-closet --force",
+    "test": "node --test \"test/**/*.test.js\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@google/genai": "^3.6.1",
+    "@gradio/client": "^2.8.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

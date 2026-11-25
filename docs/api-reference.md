@@ -24,7 +24,7 @@ There is no mock or offline mode: if Gemini fails, the endpoint returns an error
 
 ## Health
 
-`GET /api/health` — reports whether MongoDB is connected and which Gemini model and product search provider are configured. Returns `503` when the database is down.
+`GET /api/health` — reports whether MongoDB is connected and which Gemini model and product search provider are configured. `imageGeneration` lists the configured image providers and the same `tryOn` / `makeover` availability as `GET /api/looks/capabilities`. Returns `503` when the database is down.
 
 ## Auth (`/api/auth`)
 
@@ -157,10 +157,13 @@ Body `{ budget (₹200–₹10,00,000), goal?, categories[]?, style?, priorities
 
 ## Looks: Virtual Try-On & Style Makeover (`/api/looks`)
 
-Generated photos of the user. Image generation uses Gemini image models (`GEMINI_IMAGE_MODEL`), which need billing enabled on the API key; on the free tier these calls return 503 with an explanation. Photos are JPEG/PNG/WebP up to 5MB.
+Generated photos of the user. Images come from the providers in `IMAGE_GENERATION_PROVIDERS`, tried in order: Gemini image models (paid tier only), then free Hugging Face Spaces (IDM-VTON for a single top/outerwear/dress, FLUX.1 Kontext for makeovers and multi-item try-on). A provider is skipped only when it is unavailable (no quota, down, timed out); input errors (`422`, e.g. no person in the photo) are returned straight away. When no provider can serve the request the API returns `503` with a user-friendly message; developer detail is logged on the server only. Photos are JPEG/PNG/WebP up to 5MB.
+
+Each look includes `provider` (e.g. `"gemini"` or `"huggingface:black-forest-labs/FLUX.1-Kontext-Dev"`) and `providerLabel` (display name, e.g. `"FLUX.1-Kontext-Dev (free)"`), or `null` for looks made before these fields existed.
 
 | Method | Path | Notes |
 |---|---|---|
+| GET | `/looks/capabilities` | `{ tryOn, makeover }`, each `{ available, provider, reason }`: whether images can be generated right now and by which provider. Based on configuration and the zero-quota circuit breaker only; makes no generation call. |
 | GET | `/looks?feature=try-on\|makeover&favorite=true` | The caller's saved looks, newest first. Unsaved looks older than 7 days are deleted. |
 | POST | `/looks/try-on` | Multipart `photo` + `data` (JSON `{ itemIds }`, 1–5 owned wardrobe items with photos). Or JSON `{ itemIds, sourceLookId }` to reuse the photo of an earlier look. Returns the new look (unsaved). |
 | POST | `/looks/makeover/analyze` | Multipart `photo`. Returns `{ assessment, options }` with 3 style options. Nothing is stored. |
