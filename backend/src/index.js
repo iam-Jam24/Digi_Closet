@@ -8,6 +8,10 @@ const errorHandler = require('./middleware/errorMiddleware');
 
 const app = express();
 
+// Hosts like Render sit behind one proxy; trust it so rate limits see each
+// user's real IP instead of the proxy's.
+if (env.NODE_ENV === 'production') app.set('trust proxy', 1);
+
 // Database
 connectDB();
 
