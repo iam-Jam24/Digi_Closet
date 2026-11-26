@@ -723,7 +723,7 @@ function tryOnPrompt(items) {
   const garments = items
     .map((item, index) => `Image ${index + 2}: ${item.name} (${[item.category, item.type, item.colors?.join('/'), item.pattern].filter(Boolean).join(', ')})`)
     .join('\n');
-  return `Image 1 is a photo of a person. The other images are clothing items from their wardrobe:
+  return `Image 1 is a photo of a person. The other images are clothing items:
 ${garments}
 
 Edit image 1 so the person is wearing all of these items, each replacing whatever they currently wear in the same place on the body. Keep any clothing that is not being replaced.
@@ -731,6 +731,45 @@ Reproduce every item faithfully: exact colours, pattern, print, texture, logos a
 Make the fit realistic for this body: natural drape, folds and creases, with shadows and highlights that match the photo's lighting.
 ${PRESERVE_PERSON}
 Do not add clothing or accessories that were not provided.`;
+}
+
+const lookRating = (value) => Math.round(Math.max(1, Math.min(10, Number(value) || 1)) * 10) / 10;
+
+/**
+ * Rates a generated try-on image: overall look, colour and how well the
+ * pieces match, with a short verdict and tip. Judges clothes and styling only.
+ */
+async function rateLook({ image, items = [] }) {
+  const result = await gemini.generateJSON({
+    systemInstruction: `${STYLIST_RULES}
+You may comment on how clothing colours suit the person's visible colouring. Judge only the clothes and styling, never the person.`,
+    temperature: 0.3,
+    images: [GeminiService.imagePart(image.buffer, image.mimeType)],
+    prompt: `This image shows a person wearing${items.length ? `: ${items.map((i) => i.name).join(', ')}` : ' a new outfit'}.
+Rate the outfit honestly on a 1-10 scale (one decimal; reserve 9+ for genuinely excellent styling):
+- look: how good the overall outfit looks on them
+- colour: how well the colours suit them and each other
+- matching: how well the pieces go together in style and proportion
+verdict is a 2-5 word headline. tip is one sentence (max 16 words) on the single best improvement.`,
+    schema: {
+      type: 'object',
+      properties: {
+        look: { type: 'number' },
+        colour: { type: 'number' },
+        matching: { type: 'number' },
+        verdict: { type: 'string' },
+        tip: { type: 'string' },
+      },
+      required: ['look', 'colour', 'matching', 'verdict', 'tip'],
+    },
+  });
+  return {
+    look: lookRating(result.look),
+    colour: lookRating(result.colour),
+    matching: lookRating(result.matching),
+    verdict: String(result.verdict || '').trim().slice(0, 60),
+    tip: String(result.tip || '').trim().slice(0, 160),
+  };
 }
 
 // Plain-text description of a wardrobe item, for image models that take the
@@ -913,6 +952,7 @@ module.exports = {
   analyzeMakeover,
   sanitizeStyleOption,
   tryOnPrompt,
+  rateLook,
   tryOnTextPrompt,
   garmentDescription,
   makeoverPrompt,

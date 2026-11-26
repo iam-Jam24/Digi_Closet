@@ -11,7 +11,13 @@ const router = express.Router();
 router.use(authenticate);
 router.get('/', listLooks);
 router.get('/capabilities', getCapabilities);
-router.post('/try-on', aiRateLimiter, upload.single('photo'), parseJsonField, createTryOn);
+router.post(
+  '/try-on',
+  aiRateLimiter,
+  upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'garments', maxCount: 5 }]),
+  parseJsonField,
+  createTryOn,
+);
 router.post('/makeover/analyze', aiRateLimiter, upload.single('photo'), analyzeMakeover);
 router.post('/makeover', aiRateLimiter, upload.single('photo'), parseJsonField, createMakeover);
 router.patch('/:id', updateLook);
