@@ -177,13 +177,13 @@ class HuggingFaceImageProvider {
   }
 
   /**
-   * @param {{ feature: 'try-on'|'makeover', images: Array<{buffer, mimeType}>, items?: object[], style?: object }} request
+   * @param {{ feature: 'try-on'|'makeover', prompt?: string, images: Array<{buffer, mimeType}>, items?: object[], style?: object }} request
    *   images[0] is the person photo; for try-on, images[i + 1] is items[i]'s photo.
    */
-  async generate({ feature, images, items = [], style }) {
+  async generate({ feature, prompt, images, items = [], style }) {
     const [person, ...garments] = images;
     if (feature === 'makeover') {
-      return this.run(this.editSpace, { minImages: 1, imageValues: [person], text: stylistService.makeoverPrompt(style) });
+      return this.run(this.editSpace, { minImages: 1, imageValues: [person], text: prompt || stylistService.makeoverPrompt(style) });
     }
 
     const single = items.length === 1 && garments[0] && TRYON_SLOTS.has(SLOT_BY_CATEGORY[items[0].category]);

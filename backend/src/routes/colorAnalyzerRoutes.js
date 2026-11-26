@@ -13,7 +13,12 @@ const router = express.Router();
 
 router.use(authenticate);
 
-router.post('/palette/analyze', aiRateLimiter, upload.single('image'), analyzePersonalPalette);
+router.post(
+  '/palette/analyze',
+  aiRateLimiter,
+  upload.fields([{ name: 'image', maxCount: 1 }, { name: 'wristImage', maxCount: 1 }]),
+  analyzePersonalPalette,
+);
 router.get('/palette', getPersonalPalette);
 router.put('/palette', savePersonalPalette);
 router.delete('/palette', deletePersonalPalette);
