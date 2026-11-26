@@ -53,13 +53,6 @@ const QUICK = [
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const dateLabel = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
-function greeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
 // Detected location if allowed, otherwise Bengaluru (the app's default city).
 function useLocalWeather() {
   const { weather, fetchWeather } = useWeather();
@@ -183,27 +176,31 @@ export default function Dashboard() {
       {/* Greeting */}
       <header className="studio-greeting">
         <div>
-          <span className="eyebrow">Your personal style studio</span>
           <h1 className="studio-greeting__title">
-            <span className="studio-greeting__lead-in">{greeting()},</span>
+            <span className="studio-greeting__lead-in">The art of dressing well.</span>
             <span className="studio-greeting__name">{firstName}.</span>
           </h1>
           <p className="studio-greeting__lead">Something great is waiting in your wardrobe.</p>
+          <Link to="/outfits" className="studio-greeting__cta">
+            Explore Your Style <ArrowRight size={18} strokeWidth={1.5} />
+          </Link>
+          <dl className="studio-greeting__meta">
+            <div><dt>Today</dt><dd>{dateLabel.format(new Date())}</dd></div>
+            {weather?.found && (
+              <div><dt>{weather.city}</dt><dd>{Math.round(weather.temperatureC)}°C · {weather.condition}</dd></div>
+            )}
+          </dl>
         </div>
-        <dl className="studio-greeting__meta">
-          <div><dt>Today</dt><dd>{dateLabel.format(new Date())}</dd></div>
-          {weather?.found && (
-            <div><dt>{weather.city}</dt><dd>{Math.round(weather.temperatureC)}°C · {weather.condition}</dd></div>
-          )}
-        </dl>
+        <img className="studio-greeting__image" src={img('black-white-tees-duo')} alt="Two people in black and white oversized T-shirts against a white wall" />
       </header>
 
-      {/* Editorial hero */}
+      {/* Editorial band */}
       <section className="studio-hero">
-        <div className="studio-hero__image img-zoom"><img src={img('black-white-tees-duo')} alt="Two people in black and white oversized T-shirts against a white wall" /></div>
-        <div className="studio-hero__text">
+        <div>
           <span className="eyebrow">Made for your everyday</span>
-          <h2 className="studio-hero__title">Your wardrobe.<br /><em>Your expression.</em></h2>
+          <h2 className="studio-hero__title">Your wardrobe. <em>Your expression.</em></h2>
+        </div>
+        <div className="studio-hero__body">
           <p>Discover new ways to wear what you already own.</p>
           <Link to="/outfits" className="btn btn--outline btn--md">Create an outfit</Link>
         </div>

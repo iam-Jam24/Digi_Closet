@@ -49,33 +49,47 @@
 }
 .topbar__menu { display: flex; padding: var(--space-2); border: none; background: none; color: var(--text-heading); }
 .topbar__mark { margin-right: auto; font-size: 1.125rem; }
-.topbar__search { position: relative; display: none; flex: 1; max-width: 26rem; margin-right: auto; }
-.topbar__search svg { position: absolute; left: 0; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
-.topbar__search input {
-  width: 100%;
-  padding: 0.5rem 0 0.5rem 1.75rem;
-  border: none;
-  border-bottom: 1px solid var(--border-default);
-  background: transparent;
-  font-size: var(--text-sm);
+/* Store-style header: spaced-capital links, then icons and the avatar. */
+.topbar__links { display: none; gap: var(--space-10); margin-right: auto; }
+.topbar__link {
+  position: relative;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-heading);
 }
-.topbar__search input:focus { outline: none; border-bottom-color: var(--brown-dark); }
-.topbar__search input::placeholder { color: var(--text-muted); }
-.topbar__actions { display: flex; align-items: center; gap: var(--space-2); }
-.topbar__icon { display: flex; padding: var(--space-2); color: var(--text-secondary); transition: color var(--transition-fast); }
-.topbar__icon:hover { color: var(--text-heading); }
-.topbar__profile { display: flex; align-items: center; gap: var(--space-3); padding-left: var(--space-2); }
-.topbar__profile-name { display: none; font-size: var(--text-sm); font-weight: 500; color: var(--text-heading); }
+.topbar__link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--transition-slow);
+}
+.topbar__link:hover::after, .topbar__link.is-active::after { transform: scaleX(1); }
+
+.topbar__actions { display: flex; align-items: center; gap: var(--space-4); }
+.topbar__icon { display: flex; color: var(--text-heading); transition: color var(--transition-fast); }
+.topbar__icon:hover { color: var(--brown); }
+.topbar__profile { display: flex; align-items: center; gap: var(--space-3); }
+.topbar__profile-name { font-size: var(--text-sm); font-weight: 500; color: var(--text-heading); }
+.topbar__profile .avatar { transition: box-shadow var(--transition-fast); }
+.topbar__profile:hover .avatar { box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 3px var(--text-heading); }
 .main-layout__main { flex: 1; width: 100%; max-width: 84rem; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-16); }
 
 @media (min-width: 768px) {
-  .topbar__search { display: block; }
   .topbar__mark { display: none; }
-  .topbar__profile-name { display: block; }
 }
 @media (min-width: 1024px) {
   .topbar { padding: 0 var(--space-10); }
   .topbar__menu { display: none; }
+  .topbar__links { display: flex; }
   .main-layout__main { padding: var(--space-10) var(--space-10) var(--space-20); }
 }
 

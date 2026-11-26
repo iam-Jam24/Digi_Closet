@@ -1,24 +1,22 @@
 import { useState } from 'react';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
-import { Menu, Search, Heart } from 'lucide-react';
+import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Menu, Heart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import Avatar from '../components/Avatar';
 import Wordmark from '../components/Wordmark';
 
+const TOP_LINKS = [
+  { to: '/dashboard', label: 'Overview' },
+  { to: '/wardrobe', label: 'Wardrobe' },
+  { to: '/chat', label: 'AI Stylist' },
+  { to: '/shopping/finder', label: 'Discover' },
+];
+
 export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [query, setQuery] = useState('');
   const { user, firebaseUser } = useAuth();
-  const navigate = useNavigate();
-  const name = user?.name || firebaseUser?.displayName || '';
-
-  // The top-bar search looks through the user's wardrobe.
-  const handleSearch = (e) => {
-    e.preventDefault();
-    const q = query.trim();
-    navigate(q ? `/wardrobe?search=${encodeURIComponent(q)}` : '/wardrobe');
-  };
+  const firstName = (user?.name || firebaseUser?.displayName || '').trim().split(' ')[0];
 
   return (
     <div className="main-layout">
@@ -30,21 +28,17 @@ export default function MainLayout() {
             <Menu size={20} strokeWidth={1.5} />
           </button>
           <Wordmark to="/dashboard" className="topbar__mark" />
-          <form className="topbar__search" onSubmit={handleSearch} role="search">
-            <Search size={16} strokeWidth={1.5} />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search your wardrobe"
-              aria-label="Search your wardrobe"
-            />
-          </form>
+          <nav className="topbar__links" aria-label="Quick links">
+            {TOP_LINKS.map(({ to, label }) => (
+              <NavLink key={to} to={to} className={({ isActive }) => `topbar__link ${isActive ? 'is-active' : ''}`}>{label}</NavLink>
+            ))}
+          </nav>
           <div className="topbar__actions">
-            <Link to="/saved" className="topbar__icon" aria-label="Saved items"><Heart size={18} strokeWidth={1.5} /></Link>
+            <Link to="/saved" className="topbar__icon" aria-label="Saved items"><Heart size={20} strokeWidth={1.4} /></Link>
+            {/* First name only, so the avatar shows one initial ("J"). */}
             <Link to="/profile" className="topbar__profile" aria-label="Your profile">
-              <span className="topbar__profile-name">{name.split(' ')[0]}</span>
-              <Avatar name={name} size="sm" />
+              {firstName && <span className="topbar__profile-name">{firstName}</span>}
+              <Avatar name={firstName} size="sm" />
             </Link>
           </div>
         </header>

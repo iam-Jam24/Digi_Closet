@@ -123,11 +123,9 @@ export default function Wardrobe() {
 
   const hasFilters = Boolean(search || filters.category || filters.season || filters.occasion);
 
-  // The top-bar search (?search=) and the dashboard's "Add clothing" (?add=1) link here.
+  // The dashboard's "Add clothing" link (?add=1) opens the form.
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
-    const query = searchParams.get('search');
-    if (query !== null) setSearch(query);
     if (searchParams.get('add')) {
       openModal();
       setSearchParams({}, { replace: true });
