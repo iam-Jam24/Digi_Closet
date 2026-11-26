@@ -53,8 +53,19 @@ export default function useLooks(feature) {
     fetchCapabilities();
   }, [fetchLooks, fetchCapabilities]);
 
-  const generateTryOn = useCallback(async ({ photoFile, itemIds, sourceLookId }) => {
-    const { data } = await api.post('/looks/try-on', toRequestBody({ itemIds, sourceLookId }, photoFile));
+  // garmentFiles: uploaded clothes [{ file, name, category }]. reuseGarments
+  // asks the server to reuse the clothes uploaded for sourceLookId.
+  const generateTryOn = useCallback(async ({ photoFile, itemIds = [], garmentFiles = [], sourceLookId, reuseGarments }) => {
+    const payload = { itemIds, sourceLookId, reuseGarments, garments: garmentFiles.map(({ name, category }) => ({ name, category })) };
+    let body = toRequestBody(payload, photoFile);
+    if (garmentFiles.length) {
+      if (!(body instanceof FormData)) {
+        body = new FormData();
+        body.append('data', JSON.stringify(payload));
+      }
+      garmentFiles.forEach(({ file }) => body.append('garments', file));
+    }
+    const { data } = await api.post('/looks/try-on', body);
     return data.data.look;
   }, []);
 

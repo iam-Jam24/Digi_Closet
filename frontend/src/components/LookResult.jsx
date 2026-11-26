@@ -55,6 +55,24 @@ export default function LookResult({ look, generating, onRegenerate, onUpdate, r
         )}
       </div>
 
+      {look?.rating && !generating && (
+        <div className="look-rating">
+          <div className="look-rating__score">
+            <p className="look-rating__value">{look.rating.look.toFixed(1)}<span>/10</span></p>
+            {look.rating.verdict && <p className="look-rating__verdict">{look.rating.verdict}</p>}
+          </div>
+          <div className="look-rating__meters">
+            {[['look', 'Look'], ['colour', 'Colour'], ['matching', 'Matching']].map(([key, label]) => (
+              <div key={key} className="look-rating__meter">
+                <span>{label}<b>{look.rating[key].toFixed(1)}</b></span>
+                <span className="look-rating__track"><span style={{ width: `${look.rating[key] * 10}%` }} /></span>
+              </div>
+            ))}
+          </div>
+          {look.rating.tip && <p className="look-rating__tip">{look.rating.tip}</p>}
+        </div>
+      )}
+
       {look && (
         <div className="look-result__footer">
           <p className="look-result__title">{lookTitle(look)}</p>
