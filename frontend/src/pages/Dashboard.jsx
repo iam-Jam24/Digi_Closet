@@ -191,7 +191,9 @@ export default function Dashboard() {
             )}
           </dl>
         </div>
-        <img className="studio-greeting__image" src={img('black-white-tees-duo')} alt="Two people in black and white oversized T-shirts against a white wall" />
+        <div className="studio-greeting__image img-zoom">
+          <img src={img('black-white-tees-duo')} alt="Two people in black and white oversized T-shirts against a white wall" />
+        </div>
       </header>
 
       {/* Editorial band */}

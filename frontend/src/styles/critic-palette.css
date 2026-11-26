@@ -195,7 +195,6 @@
 }
 .fc-obs:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .fc-obs .fc-obs__crop { flex-shrink: 0; width: 4.75rem; height: 4.75rem; border-radius: var(--radius-md); }
-.fc-obs__crop--empty { display: block; background: var(--bg-muted); }
 .fc-obs__body { display: flex; flex: 1; flex-direction: column; gap: var(--space-1); min-width: 0; }
 .fc-obs__title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 700; color: var(--text-heading); }
 .fc-obs__text { font-size: var(--text-xs); line-height: 1.5; color: var(--text-secondary); }

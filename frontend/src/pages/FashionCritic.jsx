@@ -20,6 +20,11 @@ import OutfitCard from '../components/OutfitCard';
 import { OCCASIONS, sortBySlot } from '../constants/wardrobe';
 import '../styles/critic-palette.css';
 
+const WHOLE_PHOTO = { x: 0, y: 0, width: 1, height: 1 };
+// Regions covering most of the photo are about the whole look: they get a
+// card thumbnail but no marker, which would just sit in the middle.
+const isLocal = (region) => region && region.width * region.height < 0.45;
+
 const RATINGS = [['fit', 'Fit'], ['colour', 'Colour'], ['coordination', 'Coordination']];
 const CHECKS = {
   'skin-tone': { label: 'Skin tone match', icon: SunMedium },
@@ -70,8 +75,9 @@ function framedRegion(region, size, aspect) {
 // A real crop of the uploaded photo, drawn with CSS so no copy is made.
 // aspect is the frame's width / height.
 function Crop({ src, region, size, aspect = 1, className = '' }) {
-  const frame = framedRegion(region, size, aspect);
-  if (!frame) return null;
+  const frame = framedRegion(region || WHOLE_PHOTO, size, aspect);
+  // Until the photo's size is known, hold the space.
+  if (!frame) return <div className={`fc-crop ${className}`} style={{ aspectRatio: aspect }} aria-hidden="true" />;
   const position = (offset, extent) => (extent >= 1 ? 0 : (offset / (1 - extent)) * 100);
   return (
     <div
@@ -136,9 +142,7 @@ function ObservationCard({ observation, photo, size, onSelect }) {
   const { status, title, detail, fix, region, id } = observation;
   return (
     <button type="button" className={`fc-obs fc-obs--${status}`} onClick={() => onSelect(id)}>
-      {photo && region
-        ? <Crop src={photo} region={region} size={size} className="fc-obs__crop" />
-        : <span className="fc-obs__crop fc-obs__crop--empty" aria-hidden="true" />}
+      {photo && <Crop src={photo} region={region} size={size} className="fc-obs__crop" />}
       <span className="fc-obs__body">
         <span className="fc-obs__title">
           <span className={`fc-dot fc-dot--${status}`} aria-hidden="true">{status === 'good' ? <Check size={10} strokeWidth={3} /> : id}</span>
@@ -329,7 +333,7 @@ export default function FashionCritic() {
     const observations = result.observations || [];
     const good = observations.filter((o) => o.status === 'good');
     const improve = observations.filter((o) => o.status === 'improve');
-    const mapped = photo ? observations.filter((o) => o.region) : [];
+    const mapped = photo ? observations.filter((o) => isLocal(o.region)) : [];
     const fixes = improve.filter((o) => o.fix);
     const positions = markerPositions(mapped, photoSize);
     // Clicking a marker or card highlights it on the photo and opens the zoom.

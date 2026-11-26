@@ -6,7 +6,10 @@
 .studio-greeting { display: grid; gap: var(--space-10); align-items: center; }
 .studio-greeting > div:first-child { min-width: 0; }
 /* The photo beside the greeting, uncropped at its own shape. */
-.studio-greeting__image { display: block; width: 100%; max-width: 36rem; height: auto; justify-self: center; }
+.studio-greeting__image { width: 100%; max-width: 36rem; justify-self: center; }
+.studio-greeting__image img { display: block; height: auto; }
+/* A little stronger than the site's default zoom, for this large photo. */
+.studio-greeting__image.img-zoom:hover img { transform: scale(1.06); }
 /* Greeting in the landing hero's type: a wide uppercase sans line over a
    Playfair italic name, as in "YOUR STYLE / Your Signature." */
 .studio-greeting__title { display: flex; flex-direction: column; gap: 0.1em; color: var(--color-text-primary); }
