@@ -17,21 +17,21 @@ const outfitsFor = (params) => `/outfits?${new URLSearchParams(params)}`;
 
 // Each tile opens the Outfit Generator with the style and/or occasion preset.
 const TODAY = [
-  { label: 'Casual wear', to: outfitsFor({ style: 'Casual' }), image: img('felt-hat-knit') },
-  { label: 'Smart casual', to: outfitsFor({ style: 'Smart Casual' }), image: img('camel-coat-white-denim') },
-  { label: 'Streetwear', to: outfitsFor({ style: 'Streetwear' }), image: img('leather-jacket-street') },
-  { label: 'Formal wear', to: outfitsFor({ style: 'Formal' }), image: img('black-suit-street') },
-  { label: 'Minimal style', to: outfitsFor({ style: 'Minimal' }), image: img('grey-shirt-studio') },
-  { label: 'Weekend looks', to: outfitsFor({ occasion: 'Casual' }), image: img('check-coat-weekend') },
+  { label: 'Casual wear', to: outfitsFor({ style: 'Casual' }), image: img('studio-grey-blazer-woman') },
+  { label: 'Smart casual', to: outfitsFor({ style: 'Smart Casual' }), image: img('studio-blazers-duo') },
+  { label: 'Streetwear', to: outfitsFor({ style: 'Streetwear' }), image: img('studio-street-black') },
+  { label: 'Formal wear', to: outfitsFor({ style: 'Formal' }), image: img('studio-suit-mono') },
+  { label: 'Minimal style', to: outfitsFor({ style: 'Minimal' }), image: img('studio-camel-coat') },
+  { label: 'Weekend looks', to: outfitsFor({ occasion: 'Casual' }), image: img('studio-oversized-tee') },
 ];
 
 const EXPLORE = [
-  { label: 'Minimalist', note: 'Fewer pieces, better lines.', to: outfitsFor({ style: 'Minimal' }), image: img('white-tee-beige') },
-  { label: 'Old Money', note: 'Quiet tailoring, warm neutrals.', to: outfitsFor({ style: 'Classic' }), image: img('camel-trench') },
-  { label: 'Streetwear', note: 'Relaxed shapes with an edge.', to: outfitsFor({ style: 'Streetwear' }), image: img('street-seated') },
-  { label: 'Casual', note: 'Denim, cotton, ease.', to: outfitsFor({ style: 'Casual' }), image: img('denim-jacket-seated') },
-  { label: 'Business Casual', note: 'Sharp, without the tie.', to: outfitsFor({ style: 'Smart Casual', occasion: 'Office' }), image: img('grey-blazer-portrait') },
-  { label: 'Contemporary', note: 'Clean shapes for the evening.', to: outfitsFor({ style: 'Minimal', occasion: 'Party' }), image: img('white-coat-peach') },
+  { label: 'Minimalist', note: 'Fewer pieces, better lines.', to: outfitsFor({ style: 'Minimal' }), image: img('studio-beige-suit') },
+  { label: 'Old Money', note: 'Quiet tailoring, warm neutrals.', to: outfitsFor({ style: 'Classic' }), image: img('studio-cream-suit-seated') },
+  { label: 'Streetwear', note: 'Relaxed shapes with an edge.', to: outfitsFor({ style: 'Streetwear' }), image: img('studio-cream-puffer') },
+  { label: 'Casual', note: 'Denim, cotton, ease.', to: outfitsFor({ style: 'Casual' }), image: img('studio-cable-knit') },
+  { label: 'Business Casual', note: 'Sharp, without the tie.', to: outfitsFor({ style: 'Smart Casual', occasion: 'Office' }), image: img('studio-knit-trousers-chair') },
+  { label: 'Contemporary', note: 'Clean shapes for the evening.', to: outfitsFor({ style: 'Minimal', occasion: 'Party' }), image: img('studio-cream-set-coral') },
 ];
 
 // Editorial inspiration: each story opens the generator in its direction.

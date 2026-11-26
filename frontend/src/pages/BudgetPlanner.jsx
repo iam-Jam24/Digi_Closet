@@ -67,7 +67,7 @@ export default function BudgetPlanner() {
         eyebrow="Discover"
         title="Shop with a plan."
         subtitle="Tell us your budget and what you need. We'll look at what you already own and suggest what's worth buying."
-        image="/images/editorial/white-tee-hanger.jpg"
+        image="/images/editorial/knits-on-divider.jpg"
         variant="reverse"
       />
 
