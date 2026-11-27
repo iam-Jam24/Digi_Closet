@@ -119,6 +119,10 @@ class GeminiService {
     return { inlineData: { data: buffer.toString('base64'), mimeType } };
   }
 
+  imagePart(buffer, mimeType) {
+    return GeminiService.imagePart(buffer, mimeType);
+  }
+
   // Models in `models` that the circuit breaker hasn't switched off.
   availableModels(models = this.models) {
     return this.isConfigured ? models.filter((model) => availability.isAvailable(breakerKey(model))) : [];

@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const env = require('../config/env');
 const imageGeneration = require('../services/imageGenerationService');
+const ai = require('../services/aiService');
 
 const authRoutes = require('./authRoutes');
 const profileRoutes = require('./profileRoutes');
@@ -38,7 +39,9 @@ router.get('/health', (req, res) => {
     success: dbConnected,
     message: dbConnected ? 'Digi Closet API is running.' : 'API is up but the database is not connected.',
     database: dbConnected ? 'connected' : 'disconnected',
-    gemini: env.GEMINI_CONFIGURED ? env.GEMINI_MODEL : 'not configured',
+    ai: ai.isConfigured
+      ? { provider: env.AI_PROVIDER, model: ai.models[0], visionModel: (ai.visionModels || ai.models)[0] }
+      : `${env.AI_PROVIDER} not configured`,
     imageGeneration: {
       providers: env.IMAGE_GENERATION_PROVIDERS,
       ...imageGeneration.getCapabilities(),

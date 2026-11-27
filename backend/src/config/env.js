@@ -16,6 +16,19 @@ const env = {
   // When set, image uploads go to Cloudinary instead of Firebase Storage.
   CLOUDINARY_URL: process.env.CLOUDINARY_URL || '',
 
+  // Provider for text and photo-reading features: "groq" or "gemini".
+  AI_PROVIDER: (process.env.AI_PROVIDER || 'groq').trim().toLowerCase(),
+
+  // Groq (console.groq.com). Text features use GROQ_MODEL; anything with a
+  // photo (wardrobe scan, Fashion Critic, colour analysis) uses the vision model.
+  GROQ_API_KEY: process.env.GROQ_API_KEY || '',
+  GROQ_MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+  GROQ_FALLBACK_MODEL: process.env.GROQ_FALLBACK_MODEL || 'openai/gpt-oss-20b',
+  GROQ_VISION_MODEL: process.env.GROQ_VISION_MODEL || 'qwen/qwen3.8-27b',
+  GROQ_VISION_FALLBACK_MODEL: process.env.GROQ_VISION_FALLBACK_MODEL || '',
+
+  // Gemini: used for text when AI_PROVIDER=gemini, and as an image provider
+  // when "gemini" is in IMAGE_GENERATION_PROVIDERS and a key is set.
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
   GEMINI_CONFIGURED: Boolean(process.env.GEMINI_API_KEY),
   GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
@@ -32,7 +45,7 @@ const env = {
   // Image providers tried in order for try-on / makeover images; see
   // services/imageGenerationService.js. The older single-value
   // IMAGE_GENERATION_PROVIDER is still honoured when the list is unset.
-  IMAGE_GENERATION_PROVIDERS: (process.env.IMAGE_GENERATION_PROVIDERS || process.env.IMAGE_GENERATION_PROVIDER || 'gemini,huggingface')
+  IMAGE_GENERATION_PROVIDERS: (process.env.IMAGE_GENERATION_PROVIDERS || process.env.IMAGE_GENERATION_PROVIDER || 'gemini,huggingface,openrouter')
     .split(',').map((name) => name.trim().toLowerCase()).filter(Boolean),
 
   // Free image generation on public Hugging Face Spaces. HF_TOKEN is optional;
@@ -41,6 +54,13 @@ const env = {
   HF_TRYON_SPACE: process.env.HF_TRYON_SPACE || 'yisol/IDM-VTON',
   HF_EDIT_SPACE: process.env.HF_EDIT_SPACE || 'black-forest-labs/FLUX.1-Kontext-Dev',
   HF_TIMEOUT_MS: parseInt(process.env.HF_TIMEOUT_MS, 10) || 180000,
+
+  // Paid fallback through OpenRouter (pay-as-you-go credits). Image models are
+  // tried in order; without a key the provider is skipped.
+  OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
+  OPENROUTER_IMAGE_MODELS: (process.env.OPENROUTER_IMAGE_MODELS || 'google/gemini-3.1-flash-image,google/gemini-2.5-flash-image')
+    .split(',').map((model) => model.trim()).filter(Boolean),
+  OPENROUTER_TIMEOUT_MS: parseInt(process.env.OPENROUTER_TIMEOUT_MS, 10) || 120000,
 
   WEATHER_PROVIDER: process.env.WEATHER_PROVIDER || 'open-meteo',
 

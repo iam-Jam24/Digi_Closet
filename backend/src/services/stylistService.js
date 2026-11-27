@@ -1,10 +1,10 @@
 /**
- * Fashion features built on top of geminiService: prompts, response schemas,
+ * Fashion features built on top of aiService (Groq or Gemini): prompts, response schemas,
  * and the validation that keeps model output tied to real wardrobe data.
  */
 
-const gemini = require('./geminiService');
-const { AIError, GeminiService } = gemini;
+const ai = require('./aiService');
+const { AIError } = require('./geminiService');
 const { CATEGORIES, SEASONS, SLOT_BY_CATEGORY } = require('../models/ClothingItem');
 const { SKIN_TONES, UNDERTONES, VEIN_COLORS, COLOR_GUIDE_CATEGORIES } = require('../models/User');
 
@@ -94,10 +94,10 @@ const comboKey = (ids) => [...ids].map(String).sort().join('|');
 // ---------------------------------------------------------------------------
 
 async function analyzeClothingImage({ buffer, mimeType }) {
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     systemInstruction: STYLIST_RULES,
     temperature: 0.2,
-    images: [GeminiService.imagePart(buffer, mimeType)],
+    images: [ai.imagePart(buffer, mimeType)],
     prompt: `Identify the single main clothing item or accessory in this photo so it can be catalogued in a digital wardrobe.
 If the photo does not clearly show a garment, shoe or fashion accessory, set isClothing to false and explain why in reason.
 Category rules: any denim trousers are "Jeans"; other full-length trousers, chinos, cargos and joggers are "Trousers"; t-shirts and polos are "T-Shirts"; button-up shirts are "Shirts"; jackets, blazers, hoodies and coats are "Outerwear"; bags, belts, watches, jewellery, caps and scarves are "Accessories".
@@ -167,7 +167,7 @@ async function generateOutfits({
       .map((o) => `- ${o.title}: ${o.itemNames.join(' + ')}${o.favorite ? ' (favourite)' : ''}`).join('\n')}`
     : '';
 
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     systemInstruction: STYLIST_RULES,
     temperature: surprise ? 1.1 : 0.8,
     prompt: `Create ${count} distinct outfits using ONLY items from the wardrobe below (refer to them by id).
@@ -267,12 +267,12 @@ async function critiqueOutfit({ image, selectedItems = [], wardrobeItems = [], o
     ? 'the outfit in the attached photo'
     : `this outfit made of the user's wardrobe pieces: ${JSON.stringify(selectedItems.map(describeItem))}`;
 
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     systemInstruction: `${STYLIST_RULES}
 You may comment on visible skin undertone only to say which clothing colours suit it, on hairstyle and grooming as part of the look, and on pose and presence only as how the photo carries the outfit.
 Write like a fashion magazine caption: very short and specific. Never write paragraphs.`,
     temperature: 0.4,
-    images: image ? [GeminiService.imagePart(image.buffer, image.mimeType)] : [],
+    images: image ? [ai.imagePart(image.buffer, image.mimeType)] : [],
     prompt: `Critique ${subject}${occasion ? ` for this occasion: ${occasion}` : ''}.
 ${image ? 'If the photo does not show a wearable outfit, set isOutfit to false and explain in reason.' : 'Set isOutfit to true.'}
 Score honestly on a 1-10 scale (one decimal); reserve 9+ for genuinely excellent styling. Also rate fit, colour and coordination 1-10.
@@ -478,10 +478,10 @@ const VEIN_RESULTS = VEIN_COLORS.filter((v) => v !== 'not-provided');
 
 async function analyzeColorPalette({ face, wrist, user }) {
   const preferences = describePreferences(user, { includePalette: false });
-  const images = [GeminiService.imagePart(face.buffer, face.mimeType)];
-  if (wrist) images.push(GeminiService.imagePart(wrist.buffer, wrist.mimeType));
+  const images = [ai.imagePart(face.buffer, face.mimeType)];
+  if (wrist) images.push(ai.imagePart(wrist.buffer, wrist.mimeType));
 
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     systemInstruction: `${STYLIST_RULES}
 You are acting as a personal colour consultant. You may describe visible colouring (skin tone and undertone, hair and eye colour) only as needed for clothing colour advice.
 Skin tone and undertone are styling estimates from a photo, never medical or definitive classifications.`,
@@ -592,7 +592,7 @@ Skin tone and undertone are styling estimates from a photo, never medical or def
 // ---------------------------------------------------------------------------
 
 async function parseShoppingQuery(query) {
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     temperature: 0.1,
     prompt: `Extract structured shopping filters from this request made by a shopper in India. Prices are in INR.
 "under 1k" means maxPrice 1000. Leave fields empty when not mentioned.
@@ -643,7 +643,7 @@ Request: ${JSON.stringify(query)}`,
  * lowest-priority items are dropped until the total fits.
  */
 async function planBudget({ budget, goal, categories = [], style, priorities, wardrobeItems, user }) {
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     systemInstruction: STYLIST_RULES,
     temperature: 0.4,
     prompt: `The user has a total budget of ₹${budget} (INR) and wants: ${goal || 'to improve their wardrobe'}.
@@ -740,11 +740,11 @@ const lookRating = (value) => Math.round(Math.max(1, Math.min(10, Number(value) 
  * pieces match, with a short verdict and tip. Judges clothes and styling only.
  */
 async function rateLook({ image, items = [] }) {
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     systemInstruction: `${STYLIST_RULES}
 You may comment on how clothing colours suit the person's visible colouring. Judge only the clothes and styling, never the person.`,
     temperature: 0.3,
-    images: [GeminiService.imagePart(image.buffer, image.mimeType)],
+    images: [ai.imagePart(image.buffer, image.mimeType)],
     prompt: `This image shows a person wearing${items.length ? `: ${items.map((i) => i.name).join(', ')}` : ' a new outfit'}.
 Rate the outfit honestly on a 1-10 scale (one decimal; reserve 9+ for genuinely excellent styling):
 - look: how good the overall outfit looks on them
@@ -834,10 +834,10 @@ async function analyzeMakeover({ photo, user, wardrobeItems = [] }) {
     required: ['name', 'styleCategory', 'summary', 'clothingChanges', 'accessories', 'footwear', 'pros', 'cons'],
   };
 
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     systemInstruction: STYLIST_RULES,
     temperature: 0.8,
-    images: [GeminiService.imagePart(photo.buffer, photo.mimeType)],
+    images: [ai.imagePart(photo.buffer, photo.mimeType)],
     prompt: `The photo shows the user in their current outfit. Act as their personal stylist.
 First, assess the outfit: what works and what would elevate it (colour coordination, balance, fit, accessories, footwear).
 Then propose exactly 3 distinct makeover options that build on what they are wearing, each in a different style direction (for example casual, smart casual, formal or streetwear).
@@ -932,7 +932,7 @@ ${outfits}`;
 }
 
 async function chat({ message, history, user, wardrobeItems, weather, savedOutfits = [] }) {
-  return gemini.chat({
+  return ai.chat({
     history: history.slice(-20),
     message,
     systemInstruction: chatSystemPrompt({ user, wardrobeItems, weather, savedOutfits }),

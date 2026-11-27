@@ -2,12 +2,12 @@ const { test, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 require('./helpers');
 
-const gemini = require('../src/services/geminiService');
-const { AIError } = gemini;
+const ai = require('../src/services/aiService');
+const { AIError } = require('../src/services/geminiService');
 const { analyzeColorPalette, normalizePalette } = require('../src/services/stylistService');
 
-const realGenerateJSON = gemini.generateJSON;
-afterEach(() => { gemini.generateJSON = realGenerateJSON; });
+const realGenerateJSON = ai.generateJSON;
+afterEach(() => { ai.generateJSON = realGenerateJSON; });
 
 const swatch = (name, hex = '#556B2F') => ({ name, hex, note: `${name} note` });
 const face = { buffer: Buffer.from('face'), mimeType: 'image/jpeg' };
@@ -40,7 +40,7 @@ const modelAnswer = (overrides = {}) => ({
 
 function stubGemini(answer) {
   const calls = [];
-  gemini.generateJSON = async (args) => { calls.push(args); return answer; };
+  ai.generateJSON = async (args) => { calls.push(args); return answer; };
   return calls;
 }
 
