@@ -64,6 +64,7 @@ Most fashion apps don't help: they ignore what you already own and push new purc
 - **Weather Looks**: outfit ideas for today's forecast.
 - **Clothes Finder**: describe what you want in plain words and get real products from **Myntra, AJIO, Amazon, Flipkart and Nykaa Fashion**.
 - **Budget Planner**: a shopping list that fills real wardrobe gaps within your budget.
+- **Location Finds**: physical clothing stores, boutiques and ethnic-wear shops within 5 km, sorted by speciality (ethnic, bridal, formal, streetwear…), on a map with directions.
 - **Outfit Calendar**: plan outfits by date and track what you've worn.
 
 ### Account
@@ -85,6 +86,7 @@ flowchart LR
   A --> I[Image generation<br/>Gemini → Hugging Face → OpenRouter]
   A --> S[SerpApi<br/>product search]
   A --> W[Open-Meteo<br/>weather]
+  A --> O[OpenStreetMap<br/>nearby stores]
 ```
 
 - **Text and photo reading** (chat, wardrobe tagging, Fashion Critic, Colour Palette, outfits, budget plans) runs on **Groq**. Text uses `openai/gpt-oss-120b` with `openai/gpt-oss-20b` as backup; anything with a photo uses the vision model `qwen/qwen3.8-27b`. Set `AI_PROVIDER=gemini` to use Google Gemini instead.
@@ -108,7 +110,7 @@ flowchart LR
 | **AI (text and vision)** | Groq (default) or Google Gemini |
 | **AI (images)** | Gemini, Hugging Face Spaces, OpenRouter |
 | **Storage** | Cloudinary (local `uploads/` folder in development) |
-| **Integrations** | SerpApi Google Shopping, Open-Meteo weather |
+| **Integrations** | SerpApi Google Shopping, Open-Meteo weather, OpenStreetMap (Overpass, Nominatim, Leaflet map) |
 | **Hosting** | Vercel (frontend), Render (backend) |
 | **Tooling** | Nodemon, Oxlint, Node test runner |
 

@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutGrid, Shirt, Wand2, Camera, WandSparkles, Palette, Sparkles, MessageCircle,
-  Search, CloudSun, Wallet, CalendarDays, ChartNoAxesColumn, Heart, User, Settings, LogOut, X,
+  Search, CloudSun, Wallet, MapPinned, CalendarDays, ChartNoAxesColumn, Heart, User, Settings, LogOut, X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Wordmark from './Wordmark';
@@ -32,6 +32,7 @@ const navGroups = [
       { to: '/shopping/finder', label: 'Clothes Finder', icon: Search },
       { to: '/recommendations', label: 'Weather Looks', icon: CloudSun },
       { to: '/shopping/budget', label: 'Budget Planner', icon: Wallet },
+      { to: '/location-finds', label: 'Location Finds', icon: MapPinned },
     ],
   },
   {

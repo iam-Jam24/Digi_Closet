@@ -18,6 +18,7 @@ import ColorAnalyzer from '../pages/ColorAnalyzer';
 import SmartRecommendations from '../pages/SmartRecommendations';
 import ClothesFinder from '../pages/ClothesFinder';
 import BudgetPlanner from '../pages/BudgetPlanner';
+import LocationFinds from '../pages/LocationFinds';
 import TryOn from '../pages/TryOn';
 import StyleMakeover from '../pages/StyleMakeover';
 import OutfitPlanner from '../pages/OutfitPlanner';
@@ -70,6 +71,7 @@ export default function AppRoutes() {
         <Route path="/colors" element={<ColorAnalyzer />} />
         <Route path="/shopping/finder" element={<ClothesFinder />} />
         <Route path="/shopping/budget" element={<BudgetPlanner />} />
+        <Route path="/location-finds" element={<LocationFinds />} />
 
         {/* Old URLs from before the pages were consolidated */}
         <Route path="/wardrobe/analyzer" element={<Navigate to="/wardrobe" replace />} />

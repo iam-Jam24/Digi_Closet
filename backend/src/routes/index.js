@@ -16,6 +16,7 @@ const lookRoutes = require('./lookRoutes');
 const plannerRoutes = require('./plannerRoutes');
 const chatRoutes = require('./chatRoutes');
 const weatherRoutes = require('./weatherRoutes');
+const locationFindsRoutes = require('./locationFindsRoutes');
 
 const router = express.Router();
 
@@ -31,6 +32,7 @@ router.use('/looks', lookRoutes);
 router.use('/planner', plannerRoutes);
 router.use('/chat', chatRoutes);
 router.use('/weather', weatherRoutes);
+router.use('/location-finds', locationFindsRoutes);
 
 // Health check
 router.get('/health', (req, res) => {
@@ -47,6 +49,7 @@ router.get('/health', (req, res) => {
       ...imageGeneration.getCapabilities(),
     },
     productSearch: env.PRODUCT_SEARCH_CONFIGURED ? env.PRODUCT_SEARCH_PROVIDER : 'not configured',
+    locationFinds: 'openstreetmap',
   });
 });
 

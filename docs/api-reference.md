@@ -184,6 +184,22 @@ One saved outfit per day. Dates are the user's local `YYYY-MM-DD`.
 
 Deleting a saved outfit also deletes its plans.
 
+## Location Finds (`/api/location-finds`)
+
+Physical fashion stores near a point, from OpenStreetMap (Overpass API; typed places via Nominatim). Free, no key. Rate limited to 20 requests per minute. Responses are sent with `Cache-Control: private, no-store`.
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/location-finds/nearby?lat=…&lng=…` | Stores within `radius` km (default 5, 0.5 to 10) of the exact point, nearest first. `refresh=1` skips the 10-minute cache. |
+| GET | `/location-finds/nearby?q=…` | Same, around a typed city, area, landmark or PIN code (2 to 120 chars; Indian matches preferred). 404 when the place isn't found. The response adds `origin: { label, lat, lng }`. |
+| GET | `/location-finds/stores/:id` | One store (`id` like `osm-node-123`) with extras under `details`: `email`, `instagram`, `payments[]`, `wheelchair`, `sourceUrl`. |
+
+`nearby` returns `{ radiusKm, stores[], count, totalFound, hasRatings, source, origin, categories[] }`. Each store has `id, name, brand, categories[], primaryCategory, categoryBasis, distanceKm, location, address, phone{display,tel}, website, openingHours, rating, ratingCount, openNow, imageUrl, relevance`. Fields the listing doesn't have are `null`; nothing is filled in. `openingHours` is the raw OSM rule and never becomes an "open now" claim. In dense areas only the 60 most relevant stores are kept (`totalFound` is the full count).
+
+Categories (`bridal`, `ethnic`, `festive`, `formal`, `streetwear`, `casual`, `womens`, `mens`, `all-fashion`) come from `services/locationFinds/storeClassifier.js`: OSM `shop`/`clothes` tags, then whole-word matches on the name, brand and description, then known Indian chains. There are no AI calls. A store can have several categories; one with no signal is `all-fashion`. `categoryBasis` is `listing`, `name` or `general`.
+
+Privacy: coordinates are not stored or logged. Overpass and the in-memory cache only see the point rounded to about 110 m; distances use the exact point (Haversine).
+
 ## Weather (`/api/weather`)
 
 `GET /weather?city=…` or `?lat=…&lon=…`. Public. Live Open-Meteo data cached for 10 minutes. Returns `found: false` when unavailable; it never returns made-up weather.

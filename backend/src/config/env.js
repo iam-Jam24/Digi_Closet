@@ -64,6 +64,15 @@ const env = {
 
   WEATHER_PROVIDER: process.env.WEATHER_PROVIDER || 'open-meteo',
 
+  // Location Finds (nearby fashion stores) uses OpenStreetMap: Overpass for
+  // stores and Nominatim for typed places. Both are free and keyless; their
+  // usage policies ask for an identifying User-Agent. Overpass instances
+  // (comma-separated) are tried in order while one reports it is busy.
+  OVERPASS_API_URLS: (process.env.OVERPASS_API_URL || 'https://overpass-api.de/api/interpreter,https://overpass.private.coffee/api/interpreter')
+    .split(',').map((url) => url.trim()).filter(Boolean),
+  NOMINATIM_API_URL: (process.env.NOMINATIM_API_URL || 'https://nominatim.openstreetmap.org').replace(/\/+$/, ''),
+  OSM_USER_AGENT: process.env.OSM_USER_AGENT || 'DigiCloset/1.0 (location-finds)',
+
   // Only "serpapi" (Google Shopping via serpapi.com) is implemented today.
   PRODUCT_SEARCH_PROVIDER: process.env.PRODUCT_SEARCH_PROVIDER || 'serpapi',
   PRODUCT_SEARCH_API_KEY: process.env.PRODUCT_SEARCH_API_KEY || '',
