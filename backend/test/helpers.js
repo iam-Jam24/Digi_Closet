@@ -9,6 +9,7 @@ process.env.GEMINI_IMAGE_FALLBACK_MODEL = 'image-fallback';
 process.env.IMAGE_GENERATION_PROVIDERS = 'gemini,huggingface';
 process.env.HF_TOKEN = '';
 process.env.AI_QUOTA_COOLDOWN_MS = '3600000';
+process.env.OVERPASS_API_URL = 'https://overpass-a.test/api/interpreter,https://overpass-b.test/api/interpreter';
 
 // An error shaped like the @google/genai SDK's ApiError.
 function apiError(status, message) {
