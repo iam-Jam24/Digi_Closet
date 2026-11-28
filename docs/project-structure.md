@@ -83,7 +83,9 @@ frontend/
 │   │   ├── usePlanner.js           # Outfit plans for a date range
 │   │   ├── useReveal.js            # Scroll-reveal for editorial sections
 │   │   ├── useWardrobe.js          # Wardrobe item CRUD, category filters, upload
-│   │   └── useWeather.js           # Geolocation-based weather and forecast fetching
+│   │   ├── useWeather.js           # Geolocation-based weather and forecast fetching
+│   │   ├── useGeolocation.js       # One-shot, user-triggered browser location (no tracking)
+│   │   └── useNearbyStores.js      # Location Finds search and refresh
 │   ├── layout/
 │   │   ├── AuthLayout.jsx          # Centered card layout for Login and Registration
 │   │   └── MainLayout.jsx          # Studio shell: sidebar, top bar (wardrobe search, profile), content
@@ -103,6 +105,7 @@ frontend/
 │   │   ├── SavedItems.jsx          # Bookmarked outfits, products, and shopping lists
 │   │   ├── Settings.jsx            # Account settings, themes, data export, danger zone
 │   │   ├── BudgetPlanner.jsx       # AI budget allocation that never exceeds the budget
+│   │   ├── LocationFinds.jsx       # Nearby fashion stores: map, category filters, store details
 │   │   ├── StyleMakeover.jsx       # Outfit analysis, 3 style options, generated makeovers
 │   │   ├── OutfitPlanner.jsx       # Weekly planner with mark-as-worn
 │   │   ├── WardrobeInsights.jsx    # Wear, colour and category stats; gap analysis
@@ -152,6 +155,7 @@ backend/
 │   │   ├── lookController.js       # Virtual try-on & style makeover generation, saved looks
 │   │   ├── plannerController.js    # Outfit planner days and wear tracking
 │   │   ├── wardrobeController.js   # Clothing items CRUD with image upload & categorization
+│   │   ├── locationFindsController.js # Nearby store search and store details
 │   │   └── weatherController.js    # Open-Meteo weather forecast proxy and outfit hints
 │   ├── middleware/
 │   │   ├── authMiddleware.js       # Verifies Firebase Bearer token and injects `req.user`
@@ -181,6 +185,7 @@ backend/
 │   │   ├── plannerRoutes.js        # /api/planner
 │   │   ├── wardrobeRoutes.js       # CRUD /api/wardrobe with image upload
 │   │   ├── weatherRoutes.js        # GET /api/weather/current
+│   │   ├── locationFindsRoutes.js  # GET /api/location-finds/nearby, /stores/:id
 │   │   └── index.js                # Master router mounting all sub-routes
 │   ├── services/                   # Business logic and external API integrations
 │   │   ├── geminiService.js        # @google/genai wrapper: retries, model fallback, error mapping
@@ -188,7 +193,12 @@ backend/
 │   │   ├── imageService.js         # Local disk storage & Firebase Cloud Storage adapter
 │   │   ├── productSearchService.js # Pluggable live product search (SerpApi Google Shopping)
 │   │   ├── imageGenerationService.js # Swappable image generation provider (Gemini today)
-│   │   └── weatherService.js       # Open-Meteo REST API wrapper
+│   │   ├── weatherService.js       # Open-Meteo REST API wrapper
+│   │   └── locationFinds/          # Nearby fashion stores
+│   │       ├── index.js            # Radius filter, ranking, caching
+│   │       ├── osmProvider.js      # Overpass (stores) + Nominatim (typed places)
+│   │       ├── storeClassifier.js  # Deterministic fashion-category classification
+│   │       └── geo.js              # Haversine distance, coordinate rounding
 │   └── index.js                    # Express application entry point
 ├── uploads/                        # Local file uploads directory (gitignored)
 ├── .env.example                    # Environment variable template

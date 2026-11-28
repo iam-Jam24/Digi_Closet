@@ -57,6 +57,7 @@ DigiCloset starts from **your real wardrobe**. Add your clothes once, and the AI
 - **Weather Looks**: outfit ideas that fit the forecast where you are.
 - **Clothes Finder**: describe what you want in plain words and get matching products.
 - **Budget Planner**: plan purchases that fill real wardrobe gaps within your budget.
+- **Location Finds**: physical clothing stores, boutiques and ethnic-wear shops within 5 km, sorted by speciality (ethnic, bridal, formal, streetwear…), on a map with directions.
 
 ### Planning
 - **Outfit Calendar**: plan outfits by date and track what you've worn.
@@ -78,7 +79,7 @@ DigiCloset starts from **your real wardrobe**. Add your clothes once, and the AI
 | **Database** | MongoDB |
 | **Authentication** | Firebase Authentication (Firebase Auth Emulator for local development) |
 | **AI** | Google Gemini (text, vision and image generation) |
-| **Integrations** | Open-Meteo (weather), optional product search provider |
+| **Integrations** | Open-Meteo (weather), OpenStreetMap (Overpass, Nominatim, Leaflet map), optional product search provider |
 | **Tooling** | Nodemon, Oxlint |
 
 ---

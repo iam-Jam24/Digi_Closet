@@ -72,6 +72,9 @@ GEMINI_FALLBACK_MODEL=gemini-3.1-flash-lite
 IMAGE_GENERATION_PROVIDERS=gemini,huggingface
 HF_TOKEN=
 
+# Location Finds uses OpenStreetMap and needs no key. Optional overrides:
+# OVERPASS_API_URL (comma-separated, tried in order), NOMINATIM_API_URL, OSM_USER_AGENT
+
 # Live product listings for Clothes Finder / Budget Planner (optional, SerpApi)
 PRODUCT_SEARCH_PROVIDER=serpapi
 PRODUCT_SEARCH_API_KEY=
