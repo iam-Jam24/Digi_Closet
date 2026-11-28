@@ -1,24 +1,26 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Plus, History, Trash2, Bot, X } from 'lucide-react';
+import { ArrowUp, Plus, History, Trash2, X } from 'lucide-react';
 import useChat from '../hooks/useChat';
 import useWardrobe from '../hooks/useWardrobe';
-import PageHeader from '../components/PageHeader';
-import Button from '../components/Button';
-import Input from '../components/Input';
 import ChatBubble, { ChatTypingIndicator } from '../components/ChatBubble';
-import EmptyState from '../components/EmptyState';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const SUGGESTED_QUESTIONS = [
   'What should I wear today?',
   'Suggest an outfit for a date.',
   'How can I style my black jeans?',
-  'Which accessories match my outfit?',
-  'What should I buy next?',
-  'Suggest an outfit within ₹2,000',
   'What is missing from my wardrobe?',
 ];
+
+const dayLabel = (date) => {
+  if (!date) return '';
+  const days = Math.floor((Date.now() - new Date(date)) / 86400000);
+  if (days < 1) return 'Today';
+  if (days < 2) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  return new Date(date).toLocaleDateString([], { day: 'numeric', month: 'short' });
+};
 
 export default function Chatbot() {
   const navigate = useNavigate();
@@ -32,6 +34,7 @@ export default function Chatbot() {
   const [showHistory, setShowHistory] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const scrollRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -49,57 +52,53 @@ export default function Chatbot() {
     setConfirmClear(false);
   };
 
+  const startNew = () => {
+    newConversation();
+    setShowHistory(false);
+    inputRef.current?.focus();
+  };
+
   const wardrobeCount = wardrobeItems.length;
-  const subtitle = wardrobeLoading
-    ? 'Loading your wardrobe…'
-    : wardrobeCount > 0
-      ? `Answers are based on your ${wardrobeCount} wardrobe item${wardrobeCount === 1 ? '' : 's'}, preferences and today's weather.`
-      : 'Add clothes to your wardrobe for advice based on what you own.';
 
   return (
     <div className="animate-fade-in">
-      <PageHeader
-        eyebrow="AI Studio"
-        title="Your personal style conversation."
-        subtitle={subtitle}
-        action={
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <Button variant="outline" size="sm" className="chatbot-history-toggle-btn" onClick={() => setShowHistory(!showHistory)}>
-              <History size={16} /> History ({conversations.length})
-            </Button>
-            <Button size="sm" onClick={newConversation}>
-              <Plus size={16} /> New chat
-            </Button>
-          </div>
-        }
-      />
+      <div className="studio-chat">
+        {showHistory && <button type="button" className="studio-chat__scrim" onClick={() => setShowHistory(false)} aria-label="Close conversations" />}
 
-      <div className="chatbot-container">
-        <aside className={`chatbot-history-sidebar custom-scrollbar ${showHistory ? 'chatbot-history-sidebar--mobile-open' : ''}`}>
-          <div className="chatbot-history-header">
-            <span className="chatbot-history-title"><History size={14} /> Previous chats</span>
-            {showHistory && (
-              <button className="chatbot-history-item__delete" style={{ display: 'block' }} onClick={() => setShowHistory(false)} aria-label="Close history">
-                <X size={16} />
-              </button>
-            )}
+        <aside className={`studio-chat__sidebar ${showHistory ? 'is-open' : ''}`} aria-label="Conversations">
+          <div className="studio-chat__sidebar-head">
+            <span className="studio-chat__label">Conversations</span>
+            <button type="button" className="studio-chat__icon-btn studio-chat__close" onClick={() => setShowHistory(false)} aria-label="Close conversations">
+              <X size={16} />
+            </button>
           </div>
 
-          <div className="chatbot-history-list custom-scrollbar">
+          <button type="button" className="studio-chat__new" onClick={startNew}>
+            <Plus size={15} /> New chat
+          </button>
+
+          <div className="studio-chat__list custom-scrollbar">
             {conversations.length === 0 ? (
-              <p className="chat-history-empty">No past conversations yet.</p>
+              <p className="studio-chat__empty-list">No chats yet.</p>
             ) : (
               conversations.map((c) => (
                 <div
                   key={c._id}
-                  className={`chatbot-history-item ${c._id === conversationId ? 'chatbot-history-item--active' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  className={`studio-chat__thread ${c._id === conversationId ? 'is-active' : ''}`}
                   onClick={() => { loadConversation(c._id); setShowHistory(false); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { loadConversation(c._id); setShowHistory(false); } }}
                 >
-                  <span className="chatbot-history-item__text" title={c.title}>{c.title || 'Styling chat'}</span>
+                  <span className="studio-chat__thread-text">
+                    <span className="studio-chat__thread-title" title={c.title}>{c.title || 'Styling chat'}</span>
+                    <span className="studio-chat__thread-date">{dayLabel(c.updatedAt)}</span>
+                  </span>
                   <button
-                    className="chatbot-history-item__delete"
+                    type="button"
+                    className="studio-chat__thread-delete"
                     onClick={(e) => { e.stopPropagation(); deleteConversation(c._id); }}
-                    aria-label="Delete chat"
+                    aria-label="Delete conversation"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -109,68 +108,84 @@ export default function Chatbot() {
           </div>
 
           {conversations.length > 0 && (
-            <Button variant="ghost" size="sm" className="chat-history-clear" onClick={() => setConfirmClear(true)}>
-              <Trash2 size={14} /> Clear history
-            </Button>
+            <button type="button" className="studio-chat__clear" onClick={() => setConfirmClear(true)}>
+              <Trash2 size={13} /> Clear all
+            </button>
           )}
         </aside>
 
-        <main className="chatbot-main-area">
-          <div className="chatbot-messages-wrap custom-scrollbar">
+        <section className="studio-chat__main">
+          <header className="studio-chat__topbar">
+            <button type="button" className="studio-chat__icon-btn studio-chat__history-btn" onClick={() => setShowHistory(true)} aria-label="Show conversations">
+              <History size={17} />
+            </button>
+            <div className="studio-chat__persona">
+              <h1 className="studio-chat__persona-name">DigiCloset Stylist</h1>
+            </div>
+            {messages.length > 0 && (
+              <button type="button" className="studio-chat__icon-btn" onClick={startNew} aria-label="New conversation" title="New conversation">
+                <Plus size={17} />
+              </button>
+            )}
+          </header>
+
+          <div className="studio-chat__messages custom-scrollbar">
             {messages.length === 0 ? (
-              <div className="chat-empty">
-                <EmptyState
-                  icon={Bot}
-                  title="What can I help you wear?"
-                  description="Ask about outfits for an occasion, how to style a piece you own, or what to buy next."
-                />
-                <p className="chat-empty__label">Try asking</p>
-                <div className="chat-empty__chips">
-                  {SUGGESTED_QUESTIONS.map((q) => (
-                    <button key={q} className="chatbot-chip" onClick={() => sendMessage(q)} disabled={sending}>{q}</button>
+              <div className="studio-chat__welcome">
+                <span className="studio-chat__label">Your personal stylist</span>
+                <h2 className="studio-chat__welcome-title">What can I help you <em>wear?</em></h2>
+                <p className="studio-chat__welcome-text">Outfits, styling, or what to buy next.</p>
+                <div className="studio-chat__prompts">
+                  {SUGGESTED_QUESTIONS.map((text) => (
+                    <button key={text} type="button" className="studio-chat__prompt" onClick={() => sendMessage(text)} disabled={sending}>
+                      {text}
+                    </button>
                   ))}
                 </div>
                 {!wardrobeLoading && wardrobeCount === 0 && (
-                  <p className="chat-empty__note">
-                    Your wardrobe is empty, so answers will be general.{' '}
-                    <button className="chat-empty__link" onClick={() => navigate('/wardrobe')}>Add clothes</button>
+                  <p className="studio-chat__note">
+                    Answers are general until you{' '}
+                    <button type="button" className="studio-chat__link" onClick={() => navigate('/wardrobe')}>add clothes</button>.
                   </p>
                 )}
               </div>
             ) : (
-              <>
+              <div className="studio-chat__thread-view">
                 {messages.map((m, i) => (
                   <ChatBubble
                     key={`${i}-${m.createdAt}`}
                     role={m.role}
                     content={m.content}
-                    createdAt={m.createdAt}
                     failed={m.failed}
                     onRetry={() => sendMessage(m.content)}
                   />
                 ))}
                 {sending && <ChatTypingIndicator />}
                 <div ref={scrollRef} />
-              </>
+              </div>
             )}
           </div>
 
-          {error && <p className="chat-error" role="alert">{error}</p>}
+          {error && <p className="studio-chat__error" role="alert">{error}</p>}
 
-          <form onSubmit={handleSend} className="chat-input-bar">
-            <Input
-              placeholder="Ask your stylist, e.g. how can I style my black jeans?"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              maxLength={1000}
-              disabled={sending}
-              aria-label="Message"
-            />
-            <Button type="submit" loading={sending} disabled={!input.trim()} aria-label="Send message">
-              <Send size={16} />
-            </Button>
+          <form onSubmit={handleSend} className="studio-chat__composer">
+            <div className="studio-chat__composer-box">
+              <input
+                ref={inputRef}
+                className="studio-chat__input"
+                placeholder="Ask your stylist anything…"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                maxLength={1000}
+                disabled={sending}
+                aria-label="Message"
+              />
+              <button type="submit" className="studio-chat__send" disabled={!input.trim() || sending} aria-label="Send message">
+                <ArrowUp size={18} />
+              </button>
+            </div>
           </form>
-        </main>
+        </section>
       </div>
 
       <ConfirmDialog

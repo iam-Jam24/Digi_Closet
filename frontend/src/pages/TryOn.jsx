@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Shirt, X, AlertCircle } from 'lucide-react';
+import { Sparkles, Shirt, X, AlertCircle, Plus } from 'lucide-react';
 import useWardrobe from '../hooks/useWardrobe';
 import useLooks from '../hooks/useLooks';
 import { getErrorMessage } from '../services/api';
@@ -13,10 +13,12 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
 import LookResult from '../components/LookResult';
 import LookGallery from '../components/LookGallery';
-import { sortBySlot } from '../constants/wardrobe';
+import { CATEGORIES, sortBySlot } from '../constants/wardrobe';
 import '../styles/looks.css';
 
 const MAX_ITEMS = 5;
+const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_UPLOAD_MB = 5;
 
 export default function TryOn() {
   const navigate = useNavigate();
@@ -31,6 +33,10 @@ export default function TryOn() {
   // stored copy instead of uploading the photo again.
   const [photoLookId, setPhotoLookId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  // 'wardrobe' picks saved items; 'upload' uses clothing photos from the device.
+  const [source, setSource] = useState(null);
+  const [uploads, setUploads] = useState([]);
+  const fileInputRef = useRef(null);
   const [category, setCategory] = useState('');
   const [look, setLook] = useState(null);
   const [generating, setGenerating] = useState(false);
@@ -44,6 +50,30 @@ export default function TryOn() {
   const categories = [...new Set(withPhotos.map((item) => item.category))];
   const shown = category ? withPhotos.filter((item) => item.category === category) : withPhotos;
   const selectedItems = selectedIds.map((id) => withPhotos.find((item) => item._id === id)).filter(Boolean);
+  // Default to uploading when the wardrobe has nothing to try on.
+  const mode = source || (withPhotos.length ? 'wardrobe' : 'upload');
+  const chosenCount = mode === 'wardrobe' ? selectedIds.length : uploads.length;
+
+  const addUploads = (fileList) => {
+    const files = [...(fileList || [])];
+    const valid = files.filter((file) => ACCEPTED.includes(file.type) && file.size <= MAX_UPLOAD_MB * 1024 * 1024);
+    const room = MAX_ITEMS - uploads.length;
+    if (valid.length < files.length) setError(`Use JPEG, PNG or WebP photos up to ${MAX_UPLOAD_MB}MB.`);
+    else if (valid.length > room) setError(`You can upload up to ${MAX_ITEMS} clothes at once.`);
+    else setError('');
+    setUploads((prev) => [
+      ...prev,
+      ...valid.slice(0, room).map((file) => ({
+        id: `${file.name}-${file.lastModified}-${Math.random()}`,
+        file,
+        preview: URL.createObjectURL(file),
+        category: 'T-Shirts',
+        name: '',
+      })),
+    ]);
+  };
+  const updateUpload = (id, changes) => setUploads((prev) => prev.map((u) => (u.id === id ? { ...u, ...changes } : u)));
+  const removeUpload = (id) => { setUploads((prev) => prev.filter((u) => u.id !== id)); setError(''); };
 
   const handlePhoto = (file) => {
     setPhotoFile(file);
@@ -64,11 +94,13 @@ export default function TryOn() {
     }
   };
 
-  const generate = async (itemIds, sourceLookId = photoLookId) => {
+  const generate = async ({ itemIds = [], garmentFiles = [], reuseGarments = false }, sourceLookId = photoLookId) => {
     try {
       setGenerating(true);
       setError('');
-      const result = await generateTryOn(sourceLookId ? { itemIds, sourceLookId } : { photoFile, itemIds });
+      const result = await generateTryOn(sourceLookId
+        ? { itemIds, garmentFiles, reuseGarments, sourceLookId }
+        : { photoFile, itemIds, garmentFiles });
       setLook(result);
       // Only track it if it was made from the photo currently in the upload box.
       if (!sourceLookId || sourceLookId === photoLookId) setPhotoLookId(result._id);
@@ -104,7 +136,7 @@ export default function TryOn() {
       <PageHeader
         eyebrow="AI Studio · Virtual Try-On"
         title="See yourself in something new."
-        subtitle="Step into something new: choose pieces from your wardrobe and see them on you."
+        subtitle="Choose pieces from your wardrobe or upload clothes, see them on you, and get your stylist's rating."
         image="/images/editorial/leather-jacket-model.jpg"
         variant="overlay"
       />
@@ -131,7 +163,66 @@ export default function TryOn() {
 
           <div className="looks-step">
             <h2 className="looks-step__title">2. Pick clothes</h2>
-            {withPhotos.length === 0 ? (
+            <div className="tryon-tabs" role="tablist">
+              {[['wardrobe', 'From my wardrobe'], ['upload', 'Upload clothes']].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === value}
+                  className={`tryon-tabs__tab ${mode === value ? 'is-active' : ''}`}
+                  onClick={() => { setSource(value); setError(''); }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {mode === 'upload' ? (
+              <>
+                <p className="looks-step__hint">Add up to {MAX_ITEMS} clothing photos (flat-lay or on a hanger works best) and choose what each one is.</p>
+                <div className="tryon-uploads">
+                  {uploads.map((u) => (
+                    <div key={u.id} className="tryon-upload">
+                      <div className="tryon-upload__image">
+                        <img src={u.preview} alt="" />
+                        <button type="button" onClick={() => removeUpload(u.id)} aria-label="Remove this photo"><X size={14} /></button>
+                      </div>
+                      <select
+                        className="tryon-upload__select"
+                        value={u.category}
+                        onChange={(e) => updateUpload(u.id, { category: e.target.value })}
+                        aria-label="Type of clothing"
+                      >
+                        {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <input
+                        className="tryon-upload__name"
+                        value={u.name}
+                        maxLength={60}
+                        placeholder="Name (optional)"
+                        onChange={(e) => updateUpload(u.id, { name: e.target.value })}
+                        aria-label="Name of this piece"
+                      />
+                    </div>
+                  ))}
+                  {uploads.length < MAX_ITEMS && (
+                    <button type="button" className="tryon-uploads__add" onClick={() => fileInputRef.current?.click()}>
+                      <Plus size={20} />
+                      <span>Add clothing photo</span>
+                      <small>{uploads.length}/{MAX_ITEMS}</small>
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED.join(',')}
+                  multiple
+                  hidden
+                  onChange={(e) => { addUploads(e.target.files); e.target.value = ''; }}
+                />
+              </>
+            ) : withPhotos.length === 0 ? (
               <EmptyState
                 icon={Shirt}
                 title="No wardrobe photos yet"
@@ -160,7 +251,7 @@ export default function TryOn() {
             )}
           </div>
 
-          {selectedItems.length > 0 && (
+          {mode === 'wardrobe' && selectedItems.length > 0 && (
             <div className="looks-step">
               <h2 className="looks-step__title">Selected ({selectedItems.length}/{MAX_ITEMS})</h2>
               <ul className="looks-selected">
@@ -182,9 +273,11 @@ export default function TryOn() {
           <Button
             fullWidth
             size="lg"
-            onClick={() => generate(selectedIds)}
+            onClick={() => generate(mode === 'wardrobe'
+              ? { itemIds: selectedIds }
+              : { garmentFiles: uploads.map(({ file, name, category }) => ({ file, name: name.trim(), category })) })}
             loading={generating}
-            disabled={unavailable || rechecking || !(photoFile || photoLookId) || selectedIds.length === 0}
+            disabled={unavailable || rechecking || !(photoFile || photoLookId) || chosenCount === 0}
           >
             <Sparkles size={16} /> Generate my look
           </Button>
@@ -195,7 +288,10 @@ export default function TryOn() {
             <LookResult
               look={look}
               generating={generating}
-              onRegenerate={() => generate(look.clothingItems.map((item) => item._id), look._id)}
+              onRegenerate={() => generate({
+                itemIds: look.clothingItems.map((item) => item._id),
+                reuseGarments: look.garments?.length > 0,
+              }, look._id)}
               regenerateDisabled={unavailable || rechecking}
               onUpdate={handleUpdate}
             />

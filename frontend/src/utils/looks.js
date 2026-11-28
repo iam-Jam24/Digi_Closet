@@ -1,5 +1,7 @@
 export const lookTitle = (look) =>
-  look.style?.name || look.clothingItems?.map((item) => item.name).join(' + ') || 'My look';
+  look.style?.name
+  || [...(look.clothingItems || []), ...(look.garments || [])].map((item) => item.name).join(' + ')
+  || 'My look';
 
 // Saves an image to the user's device. Fetching it first makes the
 // `download` attribute work for cross-origin URLs (e.g. Firebase Storage).

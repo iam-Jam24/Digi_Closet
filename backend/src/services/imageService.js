@@ -3,14 +3,16 @@
  *
  * Handles storing uploaded images (wardrobe items, try-on photos).
  *
- * - Production (FIREBASE_STORAGE_BUCKET configured): uploads go to
- *   Firebase Cloud Storage, scoped under users/{uid}/..., matching
- *   storage.rules which restrict access to the owning user.
- * - Development (no bucket configured): files are written to a local
+ * - CLOUDINARY_URL configured: uploads go to Cloudinary under
+ *   digi-closet/users/{uid}/... (free plan, no card required).
+ * - FIREBASE_STORAGE_BUCKET configured: uploads go to Firebase Cloud
+ *   Storage, scoped under users/{uid}/..., matching storage.rules which
+ *   restrict access to the owning user.
+ * - Development (neither configured): files are written to a local
  *   `backend/uploads/` directory and served via the `/uploads` static
  *   route. This is real file storage, not a simulation — just not
- *   cloud-backed. Switching to Firebase Storage requires no code changes
- *   in callers, only setting FIREBASE_STORAGE_BUCKET.
+ *   cloud-backed. Switching to cloud storage requires no code changes
+ *   in callers, only setting one of the variables above.
  */
 
 const fs = require('fs');
@@ -19,6 +21,11 @@ const crypto = require('crypto');
 const env = require('../config/env');
 
 const UPLOAD_ROOT = path.join(__dirname, '..', '..', 'uploads');
+const CLOUDINARY_ROOT = 'digi-closet';
+
+// Stored paths keep the file extension (readImage infers the MIME type from
+// it); Cloudinary identifies the asset by the path without it.
+const cloudinaryPublicId = (storedPath) => storedPath.replace(/\.[a-z0-9]+$/i, '');
 
 // The browser-reported MIME type is just a claim; check the file's magic bytes.
 function matchesSignature(buffer, mimetype) {
@@ -33,8 +40,13 @@ function matchesSignature(buffer, mimetype) {
 
 class ImageService {
   constructor() {
-    this.isCloudConfigured = Boolean(env.FIREBASE_STORAGE_BUCKET);
-    if (!this.isCloudConfigured) {
+    this.isCloudinaryConfigured = Boolean(env.CLOUDINARY_URL);
+    this.isCloudConfigured = !this.isCloudinaryConfigured && Boolean(env.FIREBASE_STORAGE_BUCKET);
+    if (this.isCloudinaryConfigured) {
+      // The SDK reads its credentials from the CLOUDINARY_URL env var.
+      this.cloudinary = require('cloudinary').v2;
+      this.cloudinary.config({ secure: true });
+    } else if (!this.isCloudConfigured) {
       fs.mkdirSync(UPLOAD_ROOT, { recursive: true });
     }
   }
@@ -57,6 +69,16 @@ class ImageService {
     this.assertValidImage(buffer, mimetype);
     const ext = mimetype === 'image/png' ? 'png' : mimetype === 'image/webp' ? 'webp' : 'jpg';
     const filename = `${crypto.randomUUID()}.${ext}`;
+
+    if (this.isCloudinaryConfigured) {
+      const publicId = `${CLOUDINARY_ROOT}/users/${uid}/${folder}/${crypto.randomUUID()}`;
+      const result = await new Promise((resolve, reject) => {
+        this.cloudinary.uploader
+          .upload_stream({ public_id: publicId, resource_type: 'image', overwrite: false }, (err, res) => (err ? reject(err) : resolve(res)))
+          .end(buffer);
+      });
+      return { url: result.secure_url, path: `${publicId}.${ext}` };
+    }
 
     if (this.isCloudConfigured) {
       const { getBucket } = require('../config/firebaseAdmin');
@@ -90,6 +112,13 @@ class ImageService {
     const ext = path.extname(storedPath).toLowerCase();
     const mimeType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
 
+    if (this.isCloudinaryConfigured) {
+      const url = this.cloudinary.url(cloudinaryPublicId(storedPath), { format: ext.slice(1) || 'jpg' });
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Could not read stored image (HTTP ${res.status}).`);
+      return { buffer: Buffer.from(await res.arrayBuffer()), mimeType };
+    }
+
     if (this.isCloudConfigured) {
       const { getBucket } = require('../config/firebaseAdmin');
       const [buffer] = await getBucket(env.FIREBASE_STORAGE_BUCKET).file(storedPath).download();
@@ -102,6 +131,10 @@ class ImageService {
   }
 
   async deleteImage(storedPath) {
+    if (this.isCloudinaryConfigured) {
+      await this.cloudinary.uploader.destroy(cloudinaryPublicId(storedPath), { resource_type: 'image', invalidate: true });
+      return;
+    }
     if (this.isCloudConfigured) {
       const { getBucket } = require('../config/firebaseAdmin');
       const bucket = getBucket(env.FIREBASE_STORAGE_BUCKET);

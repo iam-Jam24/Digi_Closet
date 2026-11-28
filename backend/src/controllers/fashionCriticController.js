@@ -1,5 +1,7 @@
 const ClothingItem = require('../models/ClothingItem');
 const stylistService = require('../services/stylistService');
+const imageService = require('../services/imageService');
+const imageGeneration = require('../services/imageGenerationService');
 
 function parseIds(raw) {
   if (!raw) return [];
@@ -42,4 +44,34 @@ const analyze = async (req, res, next) => {
   }
 };
 
-module.exports = { analyze };
+// POST /api/fashion/visualize — multipart `image` + `data` JSON { area, fix }.
+// Returns the photo edited to show one suggested fix, as a data URL. It is a
+// preview only: nothing is stored.
+const visualize = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'Upload the outfit photo to preview a fix.' });
+    imageService.assertValidImage(req.file.buffer, req.file.mimetype);
+    const fix = typeof req.body.fix === 'string' ? req.body.fix.trim().slice(0, 100) : '';
+    const area = typeof req.body.area === 'string' ? req.body.area.trim().slice(0, 40) : '';
+    if (!fix) return res.status(400).json({ success: false, message: 'Choose a suggestion to preview.' });
+
+    const generated = await imageGeneration.generateImage({
+      feature: 'makeover',
+      prompt: stylistService.critiqueFixPrompt({ area, fix }),
+      images: [{ buffer: req.file.buffer, mimeType: req.file.mimetype }],
+    });
+    res.json({
+      success: true,
+      data: { image: `data:${generated.mimeType};base64,${generated.buffer.toString('base64')}`, provider: generated.providerLabel },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/fashion/capabilities — whether fix previews can be generated now.
+const capabilities = (req, res) => {
+  res.json({ success: true, data: { visualize: imageGeneration.getCapabilities().makeover } });
+};
+
+module.exports = { analyze, visualize, capabilities };

@@ -1,11 +1,12 @@
 /**
- * Fashion features built on top of geminiService: prompts, response schemas,
+ * Fashion features built on top of aiService (Groq or Gemini): prompts, response schemas,
  * and the validation that keeps model output tied to real wardrobe data.
  */
 
-const gemini = require('./geminiService');
-const { AIError, GeminiService } = gemini;
+const ai = require('./aiService');
+const { AIError } = require('./geminiService');
 const { CATEGORIES, SEASONS, SLOT_BY_CATEGORY } = require('../models/ClothingItem');
+const { SKIN_TONES, UNDERTONES, VEIN_COLORS, COLOR_GUIDE_CATEGORIES } = require('../models/User');
 
 const HEX = /^#[0-9A-Fa-f]{6}$/;
 
@@ -31,7 +32,9 @@ function describeItem(item) {
 }
 
 // Respects the "AI Style Personalization" privacy toggle in Settings.
-function describePreferences(user) {
+// includePalette: false when re-analysing colours, so the old palette
+// doesn't anchor the new one.
+function describePreferences(user, { includePalette = true } = {}) {
   if (user?.privacySettings?.allowAIPersonalization === false) return '';
   const prefs = user?.stylePreferences || {};
   const lines = [];
@@ -40,7 +43,7 @@ function describePreferences(user) {
   if (prefs.dislikedColors?.length) lines.push(`Avoid colours: ${prefs.dislikedColors.join(', ')}`);
   if (prefs.aesthetics?.length) lines.push(`Aesthetics: ${prefs.aesthetics.join(', ')}`);
   const palette = user?.colorPalette;
-  if (palette?.recommendedColors?.length) {
+  if (includePalette && palette?.recommendedColors?.length) {
     lines.push(`Personal colour palette: ${palette.recommendedColors.map((c) => c.name).join(', ')}`);
   }
   return lines.join('\n');
@@ -91,10 +94,10 @@ const comboKey = (ids) => [...ids].map(String).sort().join('|');
 // ---------------------------------------------------------------------------
 
 async function analyzeClothingImage({ buffer, mimeType }) {
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     systemInstruction: STYLIST_RULES,
     temperature: 0.2,
-    images: [GeminiService.imagePart(buffer, mimeType)],
+    images: [ai.imagePart(buffer, mimeType)],
     prompt: `Identify the single main clothing item or accessory in this photo so it can be catalogued in a digital wardrobe.
 If the photo does not clearly show a garment, shoe or fashion accessory, set isClothing to false and explain why in reason.
 Category rules: any denim trousers are "Jeans"; other full-length trousers, chinos, cargos and joggers are "Trousers"; t-shirts and polos are "T-Shirts"; button-up shirts are "Shirts"; jackets, blazers, hoodies and coats are "Outerwear"; bags, belts, watches, jewellery, caps and scarves are "Accessories".
@@ -164,7 +167,7 @@ async function generateOutfits({
       .map((o) => `- ${o.title}: ${o.itemNames.join(' + ')}${o.favorite ? ' (favourite)' : ''}`).join('\n')}`
     : '';
 
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     systemInstruction: STYLIST_RULES,
     temperature: surprise ? 1.1 : 0.8,
     prompt: `Create ${count} distinct outfits using ONLY items from the wardrobe below (refer to them by id).
@@ -230,6 +233,32 @@ ${JSON.stringify(wardrobeItems.map(describeItem))}`,
 // 3. Fashion critic
 // ---------------------------------------------------------------------------
 
+const CRITIC_ASPECTS = ['fit', 'colour', 'coordination', 'accessories', 'footwear', 'skin-tone', 'grooming', 'pose', 'setting'];
+// The head-to-toe checklist, in display order.
+const CRITIC_CHECKS = ['skin-tone', 'colour', 'fit', 'footwear', 'accessories', 'grooming', 'pose', 'setting'];
+const CHECK_VERDICTS = ['great', 'good', 'fix'];
+const MIN_REGION = 0.03;
+
+/**
+ * Gemini's box_2d, [ymin, xmin, ymax, xmax] on a 0-1000 grid, to a region
+ * normalised to the image: { x, y, width, height } in 0-1. Anything malformed
+ * or too small to crop meaningfully becomes null rather than a guess.
+ */
+function toRegion(box) {
+  if (!Array.isArray(box) || box.length !== 4 || !box.every(Number.isFinite)) return null;
+  const [ymin, xmin, ymax, xmax] = box.map((v) => Math.max(0, Math.min(1000, v)) / 1000);
+  if (xmax - xmin < MIN_REGION || ymax - ymin < MIN_REGION) return null;
+  const round = (v) => Math.round(v * 1000) / 1000;
+  return { x: round(xmin), y: round(ymin), width: round(xmax - xmin), height: round(ymax - ymin) };
+}
+
+const rating = (value) => (Number.isFinite(value) ? Math.round(Math.max(1, Math.min(10, value)) * 10) / 10 : null);
+
+/**
+ * A visual critique: an overall score, three sub-ratings and a few short
+ * observations, each tied to the garment area it is about. With a photo,
+ * observations carry the box of that area so the client can crop it.
+ */
 async function critiqueOutfit({ image, selectedItems = [], wardrobeItems = [], occasion }) {
   const itemsById = new Map(wardrobeItems.map((i) => [String(i._id), i]));
   const canSuggest = wardrobeItems.length > 0;
@@ -238,14 +267,21 @@ async function critiqueOutfit({ image, selectedItems = [], wardrobeItems = [], o
     ? 'the outfit in the attached photo'
     : `this outfit made of the user's wardrobe pieces: ${JSON.stringify(selectedItems.map(describeItem))}`;
 
-  const result = await gemini.generateJSON({
-    systemInstruction: STYLIST_RULES,
-    temperature: 0.5,
-    images: image ? [GeminiService.imagePart(image.buffer, image.mimeType)] : [],
+  const result = await ai.generateJSON({
+    systemInstruction: `${STYLIST_RULES}
+You may comment on visible skin undertone only to say which clothing colours suit it, on hairstyle and grooming as part of the look, and on pose and presence only as how the photo carries the outfit.
+Write like a fashion magazine caption: very short and specific. Never write paragraphs.`,
+    temperature: 0.4,
+    images: image ? [ai.imagePart(image.buffer, image.mimeType)] : [],
     prompt: `Critique ${subject}${occasion ? ` for this occasion: ${occasion}` : ''}.
-Judge colour coordination, how the pieces combine, overall balance and proportion of the garments, occasion fit, and accessories/footwear.
-Score honestly on a 1-10 scale (one decimal); reserve 9+ for genuinely excellent styling.
 ${image ? 'If the photo does not show a wearable outfit, set isOutfit to false and explain in reason.' : 'Set isOutfit to true.'}
+Score honestly on a 1-10 scale (one decimal); reserve 9+ for genuinely excellent styling. Also rate fit, colour and coordination 1-10.
+Give 3-5 observations with status "good" and 2-4 with status "improve". Cover the whole look, not just fit: garment areas (shoulders, sleeves, waist, trouser length), footwear, colour combination, how the colours suit the visible skin tone, accessories, hairstyle and grooming, pose and presence, and the setting or lighting of the photo.
+Only describe what is actually visible${image ? ' in the photo' : ''}; never invent details.
+Each title is 2-4 words, each detail one short sentence (max 12 words). For "improve", fix is the concrete change in max 10 words (e.g. "Hem trousers to a slight break"), and options are 2-3 specific alternatives to try instead (e.g. "White leather sneakers", "Tan suede loafers"), each 2-4 words.
+Also fill checks: one entry for each of ${CRITIC_CHECKS.join(', ')} with verdict great, good or fix and a note of max 10 words. Skip an entry only when it cannot be judged${image ? ' from the photo' : ' without a photo (skin-tone, grooming, pose and setting need one)'}.
+${image ? 'For every observation, box is the bounding box of that area in the photo as [ymin, xmin, ymax, xmax] on a 0-1000 scale. For an observation about the whole outfit (colour, pose, setting), box the whole person.' : ''}
+finalTip is one sentence, max 14 words.
 ${canSuggest ? `Then suggest up to 2 alternative combinations from the user's wardrobe (by id) that would improve on or offer a different take on this look.\nWardrobe: ${JSON.stringify(wardrobeItems.map(describeItem))}` : ''}`,
     schema: {
       type: 'object',
@@ -253,16 +289,43 @@ ${canSuggest ? `Then suggest up to 2 alternative combinations from the user's wa
         isOutfit: { type: 'boolean' },
         reason: { type: 'string' },
         score: { type: 'number' },
-        verdict: { type: 'string', description: '2-4 word headline' },
-        summary: { type: 'string', description: '2-3 sentences' },
-        whatLooksGood: stringArray('2-4 strengths'),
-        improvements: stringArray('1-3 things that could be better'),
-        colorFeedback: { type: 'string' },
-        combinationFeedback: { type: 'string' },
-        balanceFeedback: { type: 'string' },
-        occasionFit: { type: 'string' },
-        accessoriesFeedback: { type: 'string' },
-        suggestions: stringArray('2-4 concrete changes'),
+        category: { type: 'string', enum: STYLE_CATEGORIES },
+        summary: { type: 'string', description: 'One line, max 12 words' },
+        ratings: {
+          type: 'object',
+          properties: { fit: { type: 'number' }, colour: { type: 'number' }, coordination: { type: 'number' } },
+          required: ['fit', 'colour', 'coordination'],
+        },
+        observations: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              area: { type: 'string', description: 'Garment area, 1-3 words' },
+              aspect: { type: 'string', enum: CRITIC_ASPECTS },
+              status: { type: 'string', enum: ['good', 'improve'] },
+              title: { type: 'string' },
+              detail: { type: 'string' },
+              fix: { type: 'string' },
+              options: { type: 'array', items: { type: 'string' } },
+              ...(image && { box: { type: 'array', items: { type: 'integer' } } }),
+            },
+            required: ['area', 'aspect', 'status', 'title', 'detail', ...(image ? ['box'] : [])],
+          },
+        },
+        checks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              aspect: { type: 'string', enum: CRITIC_CHECKS },
+              verdict: { type: 'string', enum: CHECK_VERDICTS },
+              note: { type: 'string' },
+            },
+            required: ['aspect', 'verdict', 'note'],
+          },
+        },
+        finalTip: { type: 'string' },
         ...(canSuggest && {
           alternatives: {
             type: 'array',
@@ -278,12 +341,35 @@ ${canSuggest ? `Then suggest up to 2 alternative combinations from the user's wa
           },
         }),
       },
-      required: ['isOutfit', 'score', 'verdict', 'summary', 'whatLooksGood', 'improvements', 'colorFeedback', 'suggestions'],
+      required: ['isOutfit', 'score', 'category', 'summary', 'ratings', 'observations', 'checks', 'finalTip'],
     },
   });
 
   if (result.isOutfit === false) {
     throw new AIError(result.reason || 'No outfit was detected in this photo. Try a clear, full-length photo.', 422);
+  }
+
+  const text = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
+  const observations = (Array.isArray(result.observations) ? result.observations : [])
+    .filter((o) => o && ['good', 'improve'].includes(o.status) && text(o.title, 60))
+    .slice(0, 9)
+    .map((o, index) => ({
+      id: index + 1,
+      area: text(o.area, 40),
+      aspect: CRITIC_ASPECTS.includes(o.aspect) ? o.aspect : 'coordination',
+      status: o.status,
+      title: text(o.title, 60),
+      detail: text(o.detail, 140),
+      fix: o.status === 'improve' ? text(o.fix, 100) || null : null,
+      options: o.status === 'improve'
+        ? (Array.isArray(o.options) ? o.options : []).map((opt) => text(opt, 40)).filter(Boolean).slice(0, 3)
+        : [],
+      // Regions only come from a photo; wardrobe combinations have none.
+      region: image ? toRegion(o.box) : null,
+    }));
+
+  if (!observations.length) {
+    throw new AIError('The AI stylist returned an incomplete review. Please try again.', 502);
   }
 
   const alternatives = (result.alternatives || [])
@@ -294,26 +380,39 @@ ${canSuggest ? `Then suggest up to 2 alternative combinations from the user's wa
     .filter(Boolean);
 
   return {
-    score: Math.round(Math.max(1, Math.min(10, Number(result.score) || 1)) * 10) / 10,
-    verdict: result.verdict,
-    summary: result.summary,
-    whatLooksGood: result.whatLooksGood,
-    improvements: result.improvements,
-    colorFeedback: result.colorFeedback,
-    combinationFeedback: result.combinationFeedback || '',
-    balanceFeedback: result.balanceFeedback || '',
-    occasionFit: result.occasionFit || '',
-    accessoriesFeedback: result.accessoriesFeedback || '',
-    suggestions: result.suggestions || [],
+    score: rating(Number(result.score)) || 1,
+    category: STYLE_CATEGORIES.includes(result.category) ? result.category : null,
+    summary: text(result.summary, 140),
+    ratings: {
+      fit: rating(Number(result.ratings?.fit)),
+      colour: rating(Number(result.ratings?.colour)),
+      coordination: rating(Number(result.ratings?.coordination)),
+    },
+    observations,
+    // One per aspect, in checklist order; unknown or duplicate entries dropped.
+    checks: CRITIC_CHECKS.map((aspect) => {
+      const check = (Array.isArray(result.checks) ? result.checks : []).find((c) => c?.aspect === aspect);
+      return check && CHECK_VERDICTS.includes(check.verdict) && text(check.note, 90)
+        ? { aspect, verdict: check.verdict, note: text(check.note, 90) }
+        : null;
+    }).filter(Boolean),
+    finalTip: text(result.finalTip, 160),
     alternatives,
   };
+}
+
+/** Image-edit prompt showing one critic fix on the user's own photo. */
+function critiqueFixPrompt({ area, fix }) {
+  return `This is a photo of a person. Make one styling change to their outfit: ${fix}${area ? ` (the ${area})` : ''}.
+Keep every other garment, accessory and colour exactly as it is.
+${PRESERVE_PERSON}`;
 }
 
 // ---------------------------------------------------------------------------
 // 7. Personal colour palette
 // ---------------------------------------------------------------------------
 
-const swatchList = (description) => ({
+const swatchList = (description, noteDescription = 'Short tip on how to wear it') => ({
   type: 'array',
   description,
   items: {
@@ -321,50 +420,141 @@ const swatchList = (description) => ({
     properties: {
       name: { type: 'string' },
       hex: { type: 'string', description: '#RRGGBB' },
-      note: { type: 'string', description: 'Short tip on how to wear it' },
+      note: { type: 'string', description: noteDescription },
     },
-    required: ['name', 'hex'],
+    required: ['name', 'hex', 'note'],
   },
 });
 
-const cleanSwatches = (list = []) => list
-  .filter((s) => s?.name && HEX.test(s.hex))
-  .map((s) => ({ name: s.name.trim(), hex: s.hex.toUpperCase(), note: s.note || '' }));
+const pick = (value, allowed, fallback) => (allowed.includes(value) ? value : fallback);
+const text = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
+const list = (value) => (Array.isArray(value) ? value : []);
 
-async function analyzeColorPalette({ buffer, mimeType }) {
-  const result = await gemini.generateJSON({
+const cleanSwatches = (value, max = 12) => list(value)
+  .filter((s) => s && typeof s.name === 'string' && s.name.trim() && HEX.test(s.hex))
+  .slice(0, max)
+  .map((s) => ({ name: text(s.name, 40), hex: s.hex.toUpperCase(), note: text(s.note, 200) }));
+
+const PIECES = ['tops', 'trousers', 'jackets', 'dresses', 'shoes', 'accessories'];
+
+/**
+ * Validates a palette from Gemini or from the client (a saved or edited one):
+ * unknown enum values fall back to "not known", bad colours are dropped and
+ * text is length-capped. Never invents values that weren't supplied.
+ */
+function normalizePalette(raw = {}) {
+  return {
+    season: pick(raw.season, ['Spring', 'Summer', 'Autumn', 'Winter'], 'Unknown'),
+    skinTone: pick(raw.skinTone, SKIN_TONES, null),
+    undertone: pick(raw.undertone, UNDERTONES, 'uncertain'),
+    undertoneNote: text(raw.undertoneNote, 300),
+    veinColor: pick(raw.veinColor, VEIN_COLORS, 'not-provided'),
+    veinNote: text(raw.veinNote, 300),
+    confidence: pick(raw.confidence, ['low', 'medium', 'high'], null),
+    contrast: pick(raw.contrast, ['low', 'medium', 'high'], null),
+    summary: text(raw.summary, 600),
+    lightingNote: text(raw.lightingNote, 300),
+    recommendedColors: cleanSwatches(raw.recommendedColors),
+    neutralColors: cleanSwatches(raw.neutralColors),
+    experimentColors: cleanSwatches(raw.experimentColors),
+    avoidColors: cleanSwatches(raw.avoidColors),
+    recommendedMetals: cleanSwatches(raw.recommendedMetals, 4),
+    lessFlatteringMetals: cleanSwatches(raw.lessFlatteringMetals, 4),
+    combinations: list(raw.combinations).slice(0, 6).map((c) => ({
+      name: text(c?.name, 60),
+      usage: text(c?.usage, 200),
+      hexes: list(c?.hexes).filter((h) => HEX.test(h)).slice(0, 4).map((h) => h.toUpperCase()),
+      pieces: Object.fromEntries(PIECES.map((piece) => [piece, text(c?.pieces?.[piece], 160)])),
+    })).filter((c) => c.name && c.hexes.length >= 2),
+    // One entry per category, in the guide's fixed order.
+    guide: COLOR_GUIDE_CATEGORIES.map((category) => {
+      const entry = list(raw.guide).find((g) => g?.category === category);
+      return entry && { category, colors: cleanSwatches(entry.colors, 5), tip: text(entry.tip, 240) };
+    }).filter((entry) => entry && entry.colors.length > 0),
+  };
+}
+
+const VEIN_RESULTS = VEIN_COLORS.filter((v) => v !== 'not-provided');
+
+async function analyzeColorPalette({ face, wrist, user }) {
+  const preferences = describePreferences(user, { includePalette: false });
+  const images = [ai.imagePart(face.buffer, face.mimeType)];
+  if (wrist) images.push(ai.imagePart(wrist.buffer, wrist.mimeType));
+
+  const result = await ai.generateJSON({
     systemInstruction: `${STYLIST_RULES}
-You may describe visible colouring (skin undertone, hair and eye colour) only as needed for clothing colour advice.`,
+You are acting as a personal colour consultant. You may describe visible colouring (skin tone and undertone, hair and eye colour) only as needed for clothing colour advice.
+Skin tone and undertone are styling estimates from a photo, never medical or definitive classifications.`,
     temperature: 0.4,
-    images: [GeminiService.imagePart(buffer, mimeType)],
-    prompt: `Suggest clothing colours that would suit the person in this photo, based on their visible colouring.
-This is a style suggestion, not a precise analysis: lighting, white balance and filters change how colours look, so mention any lighting caveat in lightingNote.
-If no face is clearly visible (too dark, blurry, covered, or not a person), set isSuitable to false and explain in unsuitableReason.`,
+    images,
+    prompt: `Image 1 is the person's face.${wrist ? ' Image 2 is the inside of their wrist, for vein colour.' : ' No wrist photo was provided.'}
+
+1. Check the photos. If no face is clearly visible in image 1 (too dark, blurry, covered, or not a person), set isSuitable to false and explain in unsuitableReason.
+   Rate photoQuality: "poor" for coloured or artificial light, heavy filters, strong shadows or blur; "fair" for some colour cast; "good" for clear natural daylight.
+   Say any lighting caveat in lightingNote. With "poor" quality, confidence must be "low".
+2. From the face, estimate skinTone (the visible depth of skin colour) and undertone, with a one-sentence undertoneNote on what you saw (e.g. how gold or silver tones read against the skin).
+   Use "uncertain" if lighting makes the undertone impossible to judge.
+3. ${wrist
+    ? 'First decide veinsClearlyVisible: true only if image 2 shows the inner (palm-side) wrist with distinct veins in focus. The back of a hand, fingers, a watch, blurry or shadowed skin all mean false. Only when true, classify the vein colour as blue-purple, green or blue-green; otherwise use "inconclusive". Explain briefly in veinNote (if false, say what would make the photo usable).'
+    : 'Set veinColor to "inconclusive" and veinNote to an empty string: there is no wrist photo, and vein colour must never be inferred from a face.'}
+4. Build a personalised palette from the combined analysis (do not use a stock list for the undertone):
+   - recommended: 8-10 clothing colours; each note says why it works for this person.
+   - neutrals: 4-5 base neutrals; experiment: 3-4 accents to try.
+   - avoid: 3-4 colours to use less, each note explaining the effect, kindly (they are not forbidden; preference and pairing matter).
+   - metals: recommend 1-3 metal finishes (e.g. gold, silver, rose gold, champagne gold, bronze, gunmetal) with a realistic metal hex and a why-note, and 1-2 to use less. Allow mixed metals where they suit; do not assume warm means only gold or cool means only silver.
+   - combinations: 4 outfit colour combinations, each with 2-3 hexes, a one-line usage, and how to wear them as tops, trousers, jackets, dresses, shoes and accessories (one short phrase each).
+   - guide: for each category (everyday, formal, casual, festive, accessories, neutrals, contrast) give 2-4 colours and a short tip.${preferences ? `\n\nTailor the palette and guide to this style profile:\n${preferences}` : ''}`,
     schema: {
       type: 'object',
       properties: {
         isSuitable: { type: 'boolean' },
         unsuitableReason: { type: 'string' },
-        undertone: { type: 'string', enum: ['warm', 'cool', 'neutral', 'uncertain'] },
+        photoQuality: { type: 'string', enum: ['good', 'fair', 'poor'] },
+        lightingNote: { type: 'string' },
+        confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
+        skinTone: { type: 'string', enum: SKIN_TONES },
+        undertone: { type: 'string', enum: UNDERTONES },
+        undertoneNote: { type: 'string' },
+        veinsClearlyVisible: { type: 'boolean' },
+        veinColor: { type: 'string', enum: VEIN_RESULTS },
+        veinNote: { type: 'string' },
         season: { type: 'string', enum: ['Spring', 'Summer', 'Autumn', 'Winter'] },
         contrast: { type: 'string', enum: ['low', 'medium', 'high'] },
-        lightingNote: { type: 'string' },
         summary: { type: 'string', description: '2-3 friendly sentences' },
-        recommended: swatchList('6-8 core clothing colours'),
+        recommended: swatchList('8-10 core clothing colours', 'Why this colour works for this person, one sentence'),
         neutrals: swatchList('4-5 base neutrals'),
         experiment: swatchList('3-4 accent colours to try'),
-        avoid: swatchList('2-3 colours that may be less flattering'),
+        avoid: swatchList('3-4 colours to use less', 'Why to use it less, and how to wear it if loved'),
+        recommendedMetals: swatchList('1-3 metal finishes that suit', 'Why it suits'),
+        lessFlatteringMetals: swatchList('1-2 metal finishes to use less', 'Why, kindly'),
         combinations: {
           type: 'array',
-          description: '3-4 outfit colour combinations',
+          description: '4 outfit colour combinations',
           items: {
             type: 'object',
             properties: {
-              name: { type: 'string' },
+              name: { type: 'string', description: 'e.g. "Olive green + cream"' },
               hexes: { type: 'array', items: { type: 'string' }, description: '2-3 #RRGGBB values' },
               usage: { type: 'string', description: 'e.g. "Olive chinos, cream tee, tan loafers"' },
+              pieces: {
+                type: 'object',
+                properties: Object.fromEntries(PIECES.map((piece) => [piece, { type: 'string' }])),
+                required: PIECES,
+              },
             },
-            required: ['name', 'hexes', 'usage'],
+            required: ['name', 'hexes', 'usage', 'pieces'],
+          },
+        },
+        guide: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              category: { type: 'string', enum: COLOR_GUIDE_CATEGORIES },
+              colors: swatchList('2-4 colours', 'Optional short note'),
+              tip: { type: 'string' },
+            },
+            required: ['category', 'colors', 'tip'],
           },
         },
       },
@@ -373,26 +563,26 @@ If no face is clearly visible (too dark, blurry, covered, or not a person), set 
   });
 
   if (!result.isSuitable) {
-    throw new AIError(result.unsuitableReason || 'A clear, front-facing photo in natural light is needed.', 422);
+    throw new AIError(text(result.unsuitableReason, 300) || 'A clear, front-facing photo in natural light is needed.', 422);
   }
 
-  const palette = {
-    undertone: result.undertone || 'uncertain',
-    season: result.season || 'Unknown',
-    contrast: result.contrast || null,
-    lightingNote: result.lightingNote || '',
-    summary: result.summary || '',
-    recommendedColors: cleanSwatches(result.recommended),
-    neutralColors: cleanSwatches(result.neutrals),
-    experimentColors: cleanSwatches(result.experiment),
-    avoidColors: cleanSwatches(result.avoid),
-    combinations: (result.combinations || [])
-      .map((c) => ({ name: c.name, usage: c.usage, hexes: (c.hexes || []).filter((h) => HEX.test(h)).map((h) => h.toUpperCase()) }))
-      .filter((c) => c.hexes.length >= 2),
-  };
+  const palette = normalizePalette({
+    ...result,
+    recommendedColors: result.recommended,
+    neutralColors: result.neutrals,
+    experimentColors: result.experiment,
+    avoidColors: result.avoid,
+    // Vein colour comes only from a wrist photo with veins the model confirms
+    // it can see, whatever colour it reports otherwise.
+    veinColor: !wrist ? 'not-provided'
+      : (result.veinsClearlyVisible === true && VEIN_RESULTS.includes(result.veinColor) ? result.veinColor : 'inconclusive'),
+    veinNote: wrist ? result.veinNote : '',
+    // A poor photo can't support a confident reading.
+    confidence: result.photoQuality === 'poor' ? 'low' : result.confidence,
+  });
 
-  if (palette.recommendedColors.length < 3) {
-    throw new AIError('The AI stylist returned an incomplete palette. Please try again.', 502);
+  if (!palette.skinTone || palette.recommendedColors.length < 3) {
+    throw new AIError('The AI stylist returned an incomplete analysis. Please try again.', 502);
   }
   return palette;
 }
@@ -402,7 +592,7 @@ If no face is clearly visible (too dark, blurry, covered, or not a person), set 
 // ---------------------------------------------------------------------------
 
 async function parseShoppingQuery(query) {
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     temperature: 0.1,
     prompt: `Extract structured shopping filters from this request made by a shopper in India. Prices are in INR.
 "under 1k" means maxPrice 1000. Leave fields empty when not mentioned.
@@ -453,7 +643,7 @@ Request: ${JSON.stringify(query)}`,
  * lowest-priority items are dropped until the total fits.
  */
 async function planBudget({ budget, goal, categories = [], style, priorities, wardrobeItems, user }) {
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     systemInstruction: STYLIST_RULES,
     temperature: 0.4,
     prompt: `The user has a total budget of ₹${budget} (INR) and wants: ${goal || 'to improve their wardrobe'}.
@@ -533,7 +723,7 @@ function tryOnPrompt(items) {
   const garments = items
     .map((item, index) => `Image ${index + 2}: ${item.name} (${[item.category, item.type, item.colors?.join('/'), item.pattern].filter(Boolean).join(', ')})`)
     .join('\n');
-  return `Image 1 is a photo of a person. The other images are clothing items from their wardrobe:
+  return `Image 1 is a photo of a person. The other images are clothing items:
 ${garments}
 
 Edit image 1 so the person is wearing all of these items, each replacing whatever they currently wear in the same place on the body. Keep any clothing that is not being replaced.
@@ -541,6 +731,45 @@ Reproduce every item faithfully: exact colours, pattern, print, texture, logos a
 Make the fit realistic for this body: natural drape, folds and creases, with shadows and highlights that match the photo's lighting.
 ${PRESERVE_PERSON}
 Do not add clothing or accessories that were not provided.`;
+}
+
+const lookRating = (value) => Math.round(Math.max(1, Math.min(10, Number(value) || 1)) * 10) / 10;
+
+/**
+ * Rates a generated try-on image: overall look, colour and how well the
+ * pieces match, with a short verdict and tip. Judges clothes and styling only.
+ */
+async function rateLook({ image, items = [] }) {
+  const result = await ai.generateJSON({
+    systemInstruction: `${STYLIST_RULES}
+You may comment on how clothing colours suit the person's visible colouring. Judge only the clothes and styling, never the person.`,
+    temperature: 0.3,
+    images: [ai.imagePart(image.buffer, image.mimeType)],
+    prompt: `This image shows a person wearing${items.length ? `: ${items.map((i) => i.name).join(', ')}` : ' a new outfit'}.
+Rate the outfit honestly on a 1-10 scale (one decimal; reserve 9+ for genuinely excellent styling):
+- look: how good the overall outfit looks on them
+- colour: how well the colours suit them and each other
+- matching: how well the pieces go together in style and proportion
+verdict is a 2-5 word headline. tip is one sentence (max 16 words) on the single best improvement.`,
+    schema: {
+      type: 'object',
+      properties: {
+        look: { type: 'number' },
+        colour: { type: 'number' },
+        matching: { type: 'number' },
+        verdict: { type: 'string' },
+        tip: { type: 'string' },
+      },
+      required: ['look', 'colour', 'matching', 'verdict', 'tip'],
+    },
+  });
+  return {
+    look: lookRating(result.look),
+    colour: lookRating(result.colour),
+    matching: lookRating(result.matching),
+    verdict: String(result.verdict || '').trim().slice(0, 60),
+    tip: String(result.tip || '').trim().slice(0, 160),
+  };
 }
 
 // Plain-text description of a wardrobe item, for image models that take the
@@ -605,10 +834,10 @@ async function analyzeMakeover({ photo, user, wardrobeItems = [] }) {
     required: ['name', 'styleCategory', 'summary', 'clothingChanges', 'accessories', 'footwear', 'pros', 'cons'],
   };
 
-  const result = await gemini.generateJSON({
+  const result = await ai.generateJSON({
     systemInstruction: STYLIST_RULES,
     temperature: 0.8,
-    images: [GeminiService.imagePart(photo.buffer, photo.mimeType)],
+    images: [ai.imagePart(photo.buffer, photo.mimeType)],
     prompt: `The photo shows the user in their current outfit. Act as their personal stylist.
 First, assess the outfit: what works and what would elevate it (colour coordination, balance, fit, accessories, footwear).
 Then propose exactly 3 distinct makeover options that build on what they are wearing, each in a different style direction (for example casual, smart casual, formal or streetwear).
@@ -703,7 +932,7 @@ ${outfits}`;
 }
 
 async function chat({ message, history, user, wardrobeItems, weather, savedOutfits = [] }) {
-  return gemini.chat({
+  return ai.chat({
     history: history.slice(-20),
     message,
     systemInstruction: chatSystemPrompt({ user, wardrobeItems, weather, savedOutfits }),
@@ -714,12 +943,16 @@ module.exports = {
   analyzeClothingImage,
   generateOutfits,
   critiqueOutfit,
+  critiqueFixPrompt,
+  toRegion,
   analyzeColorPalette,
+  normalizePalette,
   parseShoppingQuery,
   planBudget,
   analyzeMakeover,
   sanitizeStyleOption,
   tryOnPrompt,
+  rateLook,
   tryOnTextPrompt,
   garmentDescription,
   makeoverPrompt,

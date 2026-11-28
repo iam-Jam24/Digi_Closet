@@ -2,7 +2,7 @@
  * Image generation for Virtual Try-On and Style Makeover.
  *
  * Providers are tried in the order of IMAGE_GENERATION_PROVIDERS (e.g.
- * "gemini,huggingface"). The next provider is used only when the current one
+ * "gemini,huggingface,openrouter"). The next provider is used only when the current one
  * can't serve requests at all right now (no quota, not configured, overloaded,
  * timed out, Space down). Input problems (422, e.g. no person in the photo)
  * are returned straight away. If every provider is down, the caller gets an
@@ -16,6 +16,7 @@
 const env = require('../config/env');
 const gemini = require('./geminiService');
 const huggingface = require('./huggingfaceImageProvider');
+const openrouter = require('./openrouterImageProvider');
 
 const { GeminiService, AIError, toAIError } = gemini;
 
@@ -32,7 +33,7 @@ const geminiProvider = {
   }),
 };
 
-const PROVIDERS = { gemini: geminiProvider, huggingface };
+const PROVIDERS = { gemini: geminiProvider, huggingface, openrouter };
 
 const unknown = env.IMAGE_GENERATION_PROVIDERS.filter((name) => !PROVIDERS[name]);
 if (unknown.length) {

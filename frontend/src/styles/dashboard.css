@@ -3,42 +3,64 @@
 .studio { display: flex; flex-direction: column; gap: var(--space-16); }
 
 /* --- Greeting --- */
-.studio-greeting { display: flex; flex-direction: column; gap: var(--space-6); }
-.studio-greeting > div:first-child { flex: 1; min-width: 0; }
+.studio-greeting { display: grid; gap: var(--space-10); align-items: center; }
+.studio-greeting > div:first-child { min-width: 0; }
+/* The photo beside the greeting, uncropped at its own shape. */
+.studio-greeting__image { width: 100%; max-width: 36rem; justify-self: center; }
+.studio-greeting__image img { display: block; height: auto; }
+/* A little stronger than the site's default zoom, for this large photo. */
+.studio-greeting__image.img-zoom:hover img { transform: scale(1.06); }
 /* Greeting in the landing hero's type: a wide uppercase sans line over a
    Playfair italic name, as in "YOUR STYLE / Your Signature." */
-.studio-greeting__title { display: flex; flex-direction: column; gap: 0.12em; margin-top: var(--space-3); line-height: 0.95; color: var(--color-text-primary); }
+.studio-greeting__title { display: flex; flex-direction: column; gap: 0.1em; color: var(--color-text-primary); }
 .studio-greeting__lead-in {
   font-family: var(--font-campaign);
   font-stretch: 125%;
-  font-size: clamp(1.5rem, 3.4vw, 2.75rem);
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-size: clamp(1.75rem, 3vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
   text-transform: uppercase;
-  white-space: nowrap;
+  text-wrap: balance;
 }
 .studio-greeting__name {
   font-family: var(--font-editorial);
-  font-size: clamp(2.5rem, 5.6vw, 4.75rem);
+  font-size: clamp(3rem, 7.4vw, 6.25rem);
   font-style: italic;
   font-weight: 400;
+  line-height: 1.05;
   letter-spacing: -0.01em;
 }
-.studio-greeting__lead { margin-top: var(--space-3); font-size: var(--text-base); color: var(--text-secondary); }
-.studio-greeting__meta { display: flex; gap: var(--space-8); }
+.studio-greeting__lead { margin-top: var(--space-4); font-size: clamp(var(--text-base), 1.6vw, var(--text-xl)); color: var(--text-secondary); }
+.studio-greeting__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-6);
+  border: 1px solid var(--color-text-primary);
+  border-radius: var(--radius-full);
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.studio-greeting__cta svg { transition: transform var(--transition-fast); }
+.studio-greeting__cta:hover { background: var(--color-text-primary); color: var(--bg-base); }
+.studio-greeting__cta:hover svg { transform: translateX(3px); }
+.studio-greeting__meta { display: flex; gap: var(--space-8); margin-top: var(--space-10); }
 .studio-greeting__meta div { display: flex; flex-direction: column; gap: var(--space-1); padding-left: var(--space-4); border-left: 1px solid var(--border-default); }
 .studio-greeting__meta dt { font-size: 0.625rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-muted); }
 .studio-greeting__meta dd { font-size: var(--text-sm); color: var(--text-heading); }
 
 /* --- Editorial hero: large photograph with a text panel set into it --- */
 /* Pulled up toward the greeting. */
-.studio-hero { position: relative; display: grid; margin-top: calc(var(--space-8) * -1); }
-.studio-hero__image { aspect-ratio: 4 / 5; max-height: 36rem; }
-.studio-hero__image img { object-position: center 12%; }
-.studio-hero__text { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); padding: var(--space-8) var(--space-6); background: var(--beige); }
+.studio-hero { display: grid; gap: var(--space-6); padding: var(--space-8) var(--space-6); border-radius: var(--radius-lg); background: var(--beige); }
+.studio-hero .eyebrow { display: block; margin-bottom: var(--space-3); }
+.studio-hero__body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); }
 .studio-hero__title { font-family: var(--font-display); font-size: clamp(2.5rem, 4.6vw, 4rem); font-weight: 400; line-height: 1; letter-spacing: -0.01em; }
 .studio-hero__title em { font-family: var(--font-editorial); font-style: italic; color: var(--color-accent); }
-.studio-hero__text p { max-width: 24rem; font-size: var(--text-sm); line-height: 1.7; color: var(--text-secondary); margin-bottom: var(--space-2); }
+.studio-hero__body p { max-width: 24rem; font-size: var(--text-sm); line-height: 1.7; color: var(--text-secondary); }
 
 /* --- Snapshot: one line of type and four restrained numbers --- */
 .snapshot { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-6) 0; border-top: 1px solid var(--text-heading); border-bottom: 1px solid var(--border-default); }
@@ -157,11 +179,9 @@
   .snapshot__stat:last-child { border-right: none; }
 }
 @media (min-width: 900px) {
-  .studio-greeting { flex-direction: row; align-items: flex-end; justify-content: space-between; }
-  .studio-hero { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); align-items: end; }
-  .studio-hero__image { aspect-ratio: auto; height: 36rem; max-height: none; }
-  /* The text panel sits over the photo's lower edge. */
-  .studio-hero__text { margin-left: -6rem; margin-bottom: var(--space-20); padding: var(--space-10); position: relative; }
+  .studio-greeting { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: var(--space-10); }
+  .studio-greeting__image { justify-self: end; }
+  .studio-hero { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: end; gap: var(--space-10); padding: var(--space-12) var(--space-10); }
   /* One large tile; beside it two tiles over three (a 12-column grid). */
   .mosaic { grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(2, 17rem); }
   .mosaic__tile { aspect-ratio: auto; }

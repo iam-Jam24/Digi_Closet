@@ -8,5 +8,8 @@ export function marketplaceSearchLinks(query) {
   return [
     { platform: 'Myntra', url: `https://www.myntra.com/${encodeURIComponent(q.toLowerCase().replace(/\s+/g, '-'))}` },
     { platform: 'Amazon', url: `https://www.amazon.in/s?k=${encodeURIComponent(q)}` },
+    { platform: 'Flipkart', url: `https://www.flipkart.com/search?q=${encodeURIComponent(q)}` },
+    { platform: 'AJIO', url: `https://www.ajio.com/search/?text=${encodeURIComponent(q)}` },
+    { platform: 'Nykaa Fashion', url: `https://www.nykaafashion.com/catalogsearch/result/?q=${encodeURIComponent(q)}` },
   ];
 }

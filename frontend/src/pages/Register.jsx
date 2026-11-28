@@ -72,7 +72,7 @@ export default function Register() {
 
   return (
     <AuthShell
-      image="/images/editorial/hero-studio-shirt.jpg"
+      image="/images/editorial/two-men-grass-field.jpg"
       quote="Your style. Your world."
       title="Create your account"
       subtitle="Build your digital wardrobe and meet your personal AI stylist."

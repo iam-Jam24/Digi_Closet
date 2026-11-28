@@ -1,6 +1,12 @@
 // Test-only setup: env.js exits without MONGODB_URI, and tests must not depend
 // on the developer's backend/.env (keys, provider list).
 process.env.MONGODB_URI ||= 'mongodb://127.0.0.1:27017/digi_closet_test';
+process.env.AI_PROVIDER = 'groq';
+process.env.GROQ_API_KEY = 'test-key';
+process.env.GROQ_MODEL = 'groq-text-primary';
+process.env.GROQ_FALLBACK_MODEL = 'groq-text-fallback';
+process.env.GROQ_VISION_MODEL = 'groq-vision';
+process.env.GROQ_VISION_FALLBACK_MODEL = '';
 process.env.GEMINI_API_KEY = 'test-key';
 process.env.GEMINI_MODEL = 'text-primary';
 process.env.GEMINI_FALLBACK_MODEL = 'text-fallback';

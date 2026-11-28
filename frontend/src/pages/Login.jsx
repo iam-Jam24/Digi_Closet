@@ -77,7 +77,7 @@ export default function Login() {
 
   return (
     <AuthShell
-      image="/images/editorial/camel-trench.jpg"
+      image="/images/editorial/striped-shirt-utility-duo.jpg"
       quote="Every look starts with what you already own."
       title="Sign in to your studio"
       subtitle="Your wardrobe, outfits and saved looks are waiting."

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Look = require('../models/Look');
 const ClothingItem = require('../models/ClothingItem');
+const { CATEGORIES } = require('../models/ClothingItem');
 const imageService = require('../services/imageService');
 const imageGeneration = require('../services/imageGenerationService');
 const stylistService = require('../services/stylistService');
@@ -22,10 +23,11 @@ const badRequest = (res, message) => res.status(400).json({ success: false, mess
  * again") the stored photo of one of the caller's earlier looks.
  */
 async function loadSourcePhoto(req) {
-  if (req.file) {
+  const file = req.file || req.files?.photo?.[0];
+  if (file) {
     // Checked before generation, since the photo is only stored afterwards.
-    imageService.assertValidImage(req.file.buffer, req.file.mimetype);
-    return { buffer: req.file.buffer, mimeType: req.file.mimetype, stored: null };
+    imageService.assertValidImage(file.buffer, file.mimetype);
+    return { buffer: file.buffer, mimeType: file.mimetype, stored: null };
   }
 
   const { sourceLookId } = req.body;
@@ -45,7 +47,9 @@ async function loadSourcePhoto(req) {
  * result and saves the look. Nothing touches storage when generation fails;
  * anything stored is removed again if a later step fails.
  */
-async function generateLook(req, { feature, source, prompt, references = [], items = [], style = null }) {
+async function generateLook(req, {
+  feature, source, prompt, references = [], items = [], style = null, garments = [], rate = false,
+}) {
   const generated = await imageGeneration.generateImage({
     feature,
     prompt,
@@ -53,6 +57,14 @@ async function generateLook(req, { feature, source, prompt, references = [], ite
     items,
     style,
   });
+
+  // The rating runs alongside storage; a failed rating never fails the look.
+  const rating = rate
+    ? stylistService.rateLook({ image: generated, items }).catch((err) => {
+      console.warn(`Look rating failed: ${err.detail || err.message}`);
+      return null;
+    })
+    : Promise.resolve(null);
 
   const uid = req.firebaseUser.uid;
   const created = [];
@@ -62,6 +74,17 @@ async function generateLook(req, { feature, source, prompt, references = [], ite
       sourceImage = await imageService.storeImage(source.buffer, { uid, folder: 'look-sources', mimetype: source.mimeType });
       created.push(sourceImage.path);
     }
+    // Uploaded clothes are stored once; reused ones already have a copy.
+    const storedGarments = [];
+    for (const garment of garments) {
+      if (garment.imagePath) {
+        storedGarments.push(garment);
+        continue;
+      }
+      const stored = await imageService.storeImage(garment.buffer, { uid, folder: 'tryon-garments', mimetype: garment.mimeType });
+      created.push(stored.path);
+      storedGarments.push({ name: garment.name, category: garment.category, imageUrl: stored.url, imagePath: stored.path });
+    }
     const result = await imageService.storeImage(generated.buffer, { uid, folder: 'looks', mimetype: generated.mimeType });
     created.push(result.path);
 
@@ -70,7 +93,9 @@ async function generateLook(req, { feature, source, prompt, references = [], ite
       feature,
       sourceImageUrl: sourceImage.url,
       sourceImagePath: sourceImage.path,
-      clothingItems: items.map((item) => item._id),
+      clothingItems: items.filter((item) => item._id).map((item) => item._id),
+      garments: storedGarments,
+      rating: await rating,
       style,
       provider: generated.provider,
       providerLabel: generated.providerLabel,
@@ -95,11 +120,16 @@ async function discardLookImages(looks) {
       imageService.deleteImage(sourcePath).catch(() => {});
     }
   }
+  for (const garmentPath of new Set(looks.flatMap((look) => (look.garments || []).map((g) => g.imagePath)))) {
+    if (!(await Look.exists({ 'garments.imagePath': garmentPath }))) {
+      imageService.deleteImage(garmentPath).catch(() => {});
+    }
+  }
 }
 
 async function pruneUnsavedLooks(ownerId) {
   const filter = { owner: ownerId, saved: false, createdAt: { $lt: new Date(Date.now() - UNSAVED_LOOK_TTL_MS) } };
-  const stale = await Look.find(filter, 'sourceImagePath resultPath').lean();
+  const stale = await Look.find(filter, 'sourceImagePath resultPath garments').lean();
   if (!stale.length) return;
   await Look.deleteMany({ _id: { $in: stale.map((look) => look._id) } });
   await discardLookImages(stale);
@@ -127,38 +157,71 @@ const getCapabilities = (req, res) => {
   res.json({ success: true, data: imageGeneration.getCapabilities() });
 };
 
-// POST /api/looks/try-on — multipart `photo` + `data` JSON { itemIds },
-// or JSON { itemIds, sourceLookId } to reuse the photo of an earlier look.
+/**
+ * Clothes uploaded for this try-on: fresh files with { name, category } in
+ * `data.garments`, or (for "Generate again") the stored copies from the
+ * earlier look named by `sourceLookId`.
+ */
+async function loadUploadedGarments(req) {
+  const files = req.files?.garments || [];
+  if (files.length) {
+    const meta = Array.isArray(req.body.garments) ? req.body.garments : [];
+    return files.map((file, index) => {
+      imageService.assertValidImage(file.buffer, file.mimetype);
+      const category = CATEGORIES.includes(meta[index]?.category) ? meta[index].category : 'Tops';
+      const name = typeof meta[index]?.name === 'string' && meta[index].name.trim()
+        ? meta[index].name.trim().slice(0, 60)
+        : `Uploaded ${category.toLowerCase()}`;
+      return { name, category, buffer: file.buffer, mimeType: file.mimetype };
+    });
+  }
+  if (req.body.reuseGarments !== true || !mongoose.isValidObjectId(req.body.sourceLookId)) return [];
+  const look = await Look.findOne({ _id: req.body.sourceLookId, owner: req.user._id }, 'garments').lean();
+  return look?.garments || [];
+}
+
+// POST /api/looks/try-on — multipart `photo` + up to 5 `garments` files +
+// `data` JSON { itemIds, garments: [{ name, category }] }; or JSON
+// { itemIds, sourceLookId, reuseGarments } to reuse an earlier look's photos.
+// Wardrobe items and uploaded clothes together are capped at 5.
 const createTryOn = async (req, res, next) => {
   try {
     const itemIds = Array.isArray(req.body.itemIds) ? [...new Set(req.body.itemIds.map(String))] : [];
-    if (!itemIds.length) return badRequest(res, 'Select at least one item from your wardrobe.');
-    if (itemIds.length > MAX_TRY_ON_ITEMS) return badRequest(res, `Select at most ${MAX_TRY_ON_ITEMS} items at a time.`);
     if (!itemIds.every((id) => mongoose.isValidObjectId(id))) return badRequest(res, 'Invalid wardrobe item.');
+    const garments = await loadUploadedGarments(req);
+    if (!itemIds.length && !garments.length) return badRequest(res, 'Choose clothes from your wardrobe or upload clothing photos.');
+    if (itemIds.length + garments.length > MAX_TRY_ON_ITEMS) return badRequest(res, `Choose at most ${MAX_TRY_ON_ITEMS} items at a time.`);
 
-    const found = await ClothingItem.find({ _id: { $in: itemIds }, owner: req.user._id });
+    const found = itemIds.length ? await ClothingItem.find({ _id: { $in: itemIds }, owner: req.user._id }) : [];
     if (found.length !== itemIds.length) {
       return res.status(404).json({ success: false, message: 'Some selected items are no longer in your wardrobe.' });
     }
-    const items = itemIds.map((id) => found.find((item) => String(item._id) === id));
-    const withoutPhoto = items.find((item) => !item.imagePath);
+    const wardrobeItems = itemIds.map((id) => found.find((item) => String(item._id) === id));
+    const withoutPhoto = wardrobeItems.find((item) => !item.imagePath);
     if (withoutPhoto) return badRequest(res, `"${withoutPhoto.name}" has no photo. Add one in your wardrobe to try it on.`);
 
     const source = await loadSourcePhoto(req);
     if (!source) return badRequest(res, 'Upload a clear full-body photo of yourself.');
 
-    const references = await Promise.all(items.map((item) => imageService.readImage(item.imagePath)));
+    const references = [
+      ...(await Promise.all(wardrobeItems.map((item) => imageService.readImage(item.imagePath)))),
+      ...(await Promise.all(garments.map((g) => (g.buffer ? { buffer: g.buffer, mimeType: g.mimeType } : imageService.readImage(g.imagePath))))),
+    ];
     const totalBytes = [source, ...references].reduce((sum, image) => sum + image.buffer.length, 0);
     if (totalBytes > MAX_REFERENCE_BYTES) {
-      return badRequest(res, 'These photos are too large to send together. Select fewer items or use a smaller photo.');
+      return badRequest(res, 'These photos are too large to send together. Choose fewer items or use smaller photos.');
     }
 
+    // Uploaded clothes are described to the model by their name and type.
+    const items = [...wardrobeItems, ...garments.map(({ name, category }) => ({ name, category }))];
     const look = await generateLook(req, {
       feature: 'try-on',
       source,
       prompt: stylistService.tryOnPrompt(items),
       references,
       items,
+      garments,
+      rate: true,
     });
     res.status(201).json({ success: true, message: 'Your look is ready.', data: { look } });
   } catch (error) {

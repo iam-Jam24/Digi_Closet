@@ -1,4 +1,4 @@
-import { Sparkles, User, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 function formatMessageText(text) {
   if (!text) return null;
@@ -35,35 +35,17 @@ function formatMessageText(text) {
   });
 }
 
-export default function ChatBubble({ role, content, createdAt, failed, onRetry }) {
-  const isAssistant = role === 'assistant';
-  const time = createdAt
-    ? new Date(createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : null;
-
+export default function ChatBubble({ role, content, failed, onRetry }) {
   return (
     <div className={`chat-bubble-row chat-bubble-row--${role}`}>
-      {isAssistant && (
-        <div className="chat-avatar chat-avatar--assistant" aria-hidden="true">
-          <Sparkles size={14} />
-        </div>
-      )}
-
       <div className={`chat-bubble chat-bubble--${role} ${failed ? 'chat-bubble--failed' : ''}`}>
         <div className="chat-bubble__content">{formatMessageText(content)}</div>
-        {time && !failed && <span className="chat-bubble__time">{time}</span>}
         {failed && (
           <button type="button" className="chat-bubble__retry" onClick={onRetry}>
             <RotateCcw size={12} /> Not sent. Retry
           </button>
         )}
       </div>
-
-      {!isAssistant && (
-        <div className="chat-avatar chat-avatar--user" aria-hidden="true">
-          <User size={14} />
-        </div>
-      )}
     </div>
   );
 }
@@ -71,9 +53,6 @@ export default function ChatBubble({ role, content, createdAt, failed, onRetry }
 export function ChatTypingIndicator() {
   return (
     <div className="chat-bubble-row chat-bubble-row--assistant">
-      <div className="chat-avatar chat-avatar--assistant" aria-hidden="true">
-        <Sparkles size={14} />
-      </div>
       <div className="chat-bubble chat-bubble--assistant chat-typing">
         <span />
         <span />

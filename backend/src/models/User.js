@@ -1,5 +1,10 @@
 const mongoose = require('mongoose');
 
+const SKIN_TONES = ['fair', 'light', 'light-medium', 'medium', 'tan', 'deep', 'dark'];
+const UNDERTONES = ['warm', 'cool', 'neutral', 'olive', 'uncertain'];
+const VEIN_COLORS = ['blue-purple', 'green', 'blue-green', 'inconclusive', 'not-provided'];
+const COLOR_GUIDE_CATEGORIES = ['everyday', 'formal', 'casual', 'festive', 'accessories', 'neutrals', 'contrast'];
+
 const stylePreferencesSchema = new mongoose.Schema(
   {
     preferredStyles: { type: [String], default: [] },
@@ -38,16 +43,39 @@ const colorSwatchSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// How each colour in a combination is worn, garment by garment.
+const combinationPiecesSchema = new mongoose.Schema(
+  {
+    tops: { type: String, default: '' },
+    trousers: { type: String, default: '' },
+    jackets: { type: String, default: '' },
+    dresses: { type: String, default: '' },
+    shoes: { type: String, default: '' },
+    accessories: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
 const colorCombinationSchema = new mongoose.Schema(
   {
     name: { type: String, default: '' },
     usage: { type: String, default: '' },
     hexes: { type: [String], default: [] },
+    pieces: { type: combinationPiecesSchema, default: () => ({}) },
   },
   { _id: false }
 );
 
-// Only the derived palette is stored; the face photo used to create it is not.
+const colorGuideEntrySchema = new mongoose.Schema(
+  {
+    category: { type: String, enum: COLOR_GUIDE_CATEGORIES, required: true },
+    colors: { type: [colorSwatchSchema], default: [] },
+    tip: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+// Only the derived palette is stored; the photos used to create it are not.
 const personalColorPaletteSchema = new mongoose.Schema(
   {
     season: {
@@ -55,11 +83,18 @@ const personalColorPaletteSchema = new mongoose.Schema(
       enum: ['Spring', 'Summer', 'Autumn', 'Winter', 'Unknown'],
       default: 'Unknown',
     },
+    // Estimated from the face photo; a styling estimate, not a measurement.
+    skinTone: { type: String, enum: [...SKIN_TONES, null], default: null },
     undertone: {
       type: String,
-      enum: ['warm', 'cool', 'neutral', 'uncertain'],
+      enum: UNDERTONES,
       default: 'uncertain',
     },
+    undertoneNote: { type: String, default: '' },
+    // 'not-provided' when no wrist photo was given; never guessed from a face.
+    veinColor: { type: String, enum: VEIN_COLORS, default: 'not-provided' },
+    veinNote: { type: String, default: '' },
+    confidence: { type: String, enum: ['low', 'medium', 'high', null], default: null },
     contrast: { type: String, enum: ['low', 'medium', 'high', null], default: null },
     summary: { type: String, default: '' },
     lightingNote: { type: String, default: '' },
@@ -67,7 +102,10 @@ const personalColorPaletteSchema = new mongoose.Schema(
     neutralColors: { type: [colorSwatchSchema], default: [] },
     experimentColors: { type: [colorSwatchSchema], default: [] },
     avoidColors: { type: [colorSwatchSchema], default: [] },
+    recommendedMetals: { type: [colorSwatchSchema], default: [] },
+    lessFlatteringMetals: { type: [colorSwatchSchema], default: [] },
     combinations: { type: [colorCombinationSchema], default: [] },
+    guide: { type: [colorGuideEntrySchema], default: [] },
     source: { type: String, enum: ['ai', 'custom'], default: 'ai' },
     analyzedAt: { type: Date, default: null },
   },
@@ -98,3 +136,7 @@ userSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { email:
 userSchema.index({ phoneNumber: 1 }, { unique: true, partialFilterExpression: { phoneNumber: { $type: 'string' } } });
 
 module.exports = mongoose.model('User', userSchema);
+module.exports.SKIN_TONES = SKIN_TONES;
+module.exports.UNDERTONES = UNDERTONES;
+module.exports.VEIN_COLORS = VEIN_COLORS;
+module.exports.COLOR_GUIDE_CATEGORIES = COLOR_GUIDE_CATEGORIES;

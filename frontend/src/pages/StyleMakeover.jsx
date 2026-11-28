@@ -165,7 +165,7 @@ export default function StyleMakeover() {
         eyebrow="Find your signature style"
         title="A new perspective on your style."
         subtitle="Upload today's outfit and get three personalised ways to elevate it, then see yourself in each one."
-        image="/images/editorial/white-shirt-man.jpg"
+        image="/images/editorial/editorial-duo-sunglasses.jpg"
         variant="reverse"
       />
 

@@ -184,3 +184,60 @@ test('HF provider does not retry another Space on an input error', async () => {
   await assert.rejects(provider.generate(tryOn([shirt])), (err) => err.statusCode === 422);
   assert.equal(predicted.length, 1);
 });
+
+const { OpenRouterImageProvider, openrouterToAIError } = require('../src/services/openrouterImageProvider');
+const env = require('../src/config/env');
+
+function withOpenRouterEnv(t, models = ['m/one', 'm/two']) {
+  const saved = { key: env.OPENROUTER_API_KEY, models: env.OPENROUTER_IMAGE_MODELS };
+  env.OPENROUTER_API_KEY = 'test-key';
+  env.OPENROUTER_IMAGE_MODELS = models;
+  t.after(() => { env.OPENROUTER_API_KEY = saved.key; env.OPENROUTER_IMAGE_MODELS = saved.models; });
+}
+
+const jsonResponse = (status, body) => ({ ok: status < 400, status, statusText: '', json: async () => body });
+const imageReply = { choices: [{ message: { images: [{ image_url: { url: `data:image/png;base64,${PNG.toString('base64')}` } }] } }] };
+
+test('openrouter sends the prompt and every photo and decodes the returned image', async (t) => {
+  withOpenRouterEnv(t);
+  const bodies = [];
+  const provider = new OpenRouterImageProvider({ fetchImpl: async (url, init) => { bodies.push(JSON.parse(init.body)); return jsonResponse(200, imageReply); } });
+  const result = await provider.generate({ prompt: 'dress me', images: [request.images[0], request.images[0]] });
+  assert.ok(result.buffer.equals(PNG));
+  assert.equal(result.mimeType, 'image/png');
+  assert.equal(result.provider, 'openrouter:m/one');
+  assert.deepEqual(bodies[0].modalities, ['image', 'text']);
+  assert.equal(bodies[0].messages[0].content.length, 3);
+  assert.equal(bodies[0].messages[0].content[0].text, 'dress me');
+});
+
+test('openrouter moves to the next model when one has no credits, and skips it afterwards', async (t) => {
+  withOpenRouterEnv(t);
+  const models = [];
+  const provider = new OpenRouterImageProvider({
+    fetchImpl: async (url, init) => {
+      const { model } = JSON.parse(init.body);
+      models.push(model);
+      return model === 'm/one' ? jsonResponse(402, { error: { code: 402, message: 'Insufficient credits' } }) : jsonResponse(200, imageReply);
+    },
+  });
+  assert.equal((await provider.generate(request)).provider, 'openrouter:m/two');
+  await provider.generate(request);
+  assert.deepEqual(models, ['m/one', 'm/two', 'm/two']);
+});
+
+test('openrouter is unavailable without a key and maps errors by status', async (t) => {
+  withOpenRouterEnv(t);
+  env.OPENROUTER_API_KEY = '';
+  assert.equal(new OpenRouterImageProvider().isAvailable('try-on'), false);
+  assert.equal(openrouterToAIError(429, 'rate limited', 'm/x').unavailable, true);
+  assert.equal(openrouterToAIError(503, 'down', 'm/x').unavailable, true);
+  assert.equal(openrouterToAIError(400, 'bad image', 'm/x').statusCode, 422);
+  assert.equal(openrouterToAIError(400, 'bad image', 'm/x').unavailable, false);
+});
+
+test('openrouter reply without an image is a 422, not a fallback', async (t) => {
+  withOpenRouterEnv(t);
+  const provider = new OpenRouterImageProvider({ fetchImpl: async () => jsonResponse(200, { choices: [{ message: { content: 'I cannot edit this.' } }] }) });
+  await assert.rejects(provider.generate(request), (err) => err.statusCode === 422 && !err.unavailable);
+});
